@@ -1,0 +1,146 @@
+export default {
+  track: 'python',
+  id: 'python-foundations',
+  name: 'The Foundations Crypt',
+  tagline: 'print/input, casting, operators, while, list methods, is vs ==',
+  icon: '🧱',
+  rooms: [
+    {
+      id: 'p37',
+      name: 'The Speaking Stone',
+      concept: 'print & input shape',
+      brief: 'Say something out; take something in — the simplest dialogue.',
+      lesson: [
+        { type: 'p', text: '`print(*objects, sep=" ", end="\\n")` writes text. `input(prompt)` reads a line (always a string).' },
+        { type: 'code', code: `print("Hello", "world", sep="-")
+name = input("Name: ")  # always a str` },
+        { type: 'note', text: 'In this browser castle, model input as a function argument instead of a real prompt.' },
+      ],
+      puzzle: {
+        kind: 'python',
+        prompt: 'Write `greet_line(name)` returning `f"Hello, {name}!"`.',
+        fnName: 'greet_line',
+        starter: `def greet_line(name):\n    pass\n`,
+        tests: [
+          { args: ['Ada'], expected: 'Hello, Ada!' },
+          { args: ['Tom'], expected: 'Hello, Tom!' },
+        ],
+        hints: ['f-string', 'Exact punctuation', 'Hello, name!'],
+      },
+    },
+    {
+      id: 'p38',
+      name: 'The Casting Forge',
+      concept: 'Type casting',
+      brief: 'Melt a value into another type — int, float, str, bool.',
+      lesson: [
+        { type: 'p', text: '`int()`, `float()`, `str()`, `bool()` convert values. Invalid casts raise ValueError.' },
+        { type: 'code', code: `int("42")\nfloat("3.5")\nstr(9)\nbool("")  # False` },
+        { type: 'note', text: '`bool` uses truthiness: 0, "", [], None are False.' },
+      ],
+      puzzle: {
+        kind: 'python',
+        prompt: 'Write `as_int(text, default=0)` returning int(text) or default on ValueError.',
+        fnName: 'as_int',
+        starter: `def as_int(text, default=0):\n    pass\n`,
+        tests: [
+          { args: ['42'], expected: 42 },
+          { args: ['x'], expected: 0 },
+          { args: ['x', -1], expected: -1 },
+        ],
+        hints: ['try/except ValueError', 'int(text)', 'return default'],
+      },
+    },
+    {
+      id: 'p39',
+      name: 'The Operator Table',
+      concept: 'Arithmetic operators',
+      brief: 'Floor division, remainder, power — the operators beyond + - * /.',
+      lesson: [
+        { type: 'p', text: '`//` floor-divides, `%` is remainder, `**` is power. Walrus `:=` assigns inside an expression (3.8+).' },
+        { type: 'code', code: `7 // 2   # 3\n7 % 2    # 1\n2 ** 10  # 1024` },
+        { type: 'note', text: 'Built-in `divmod(a, b)` returns (quotient, remainder).' },
+      ],
+      puzzle: {
+        kind: 'python',
+        prompt: 'Write `floor_div(a, b)` returning `a // b` and `remainder(a, b)` returning `a % b`. The tested function is `pair(a, b)` returning `[a // b, a % b]`.',
+        fnName: 'pair',
+        starter: `def pair(a, b):\n    pass\n`,
+        tests: [
+          { args: [7, 2], expected: [3, 1] },
+          { args: [10, 5], expected: [2, 0] },
+          { args: [3, 4], expected: [0, 3] },
+        ],
+        hints: ['Return a list of two ints', 'a // b then a % b', 'Same as list(divmod(a, b))'],
+      },
+    },
+    {
+      id: 'p40',
+      name: 'The While Spiral',
+      concept: 'while loops',
+      brief: 'Repeat while a condition holds — and stop before it spirals forever.',
+      lesson: [
+        { type: 'p', text: '`while cond:` repeats. Prefer `for` for known sequences; `while` for unknown duration.' },
+        { type: 'code', code: `n = 3\nwhile n > 0:\n    n -= 1` },
+        { type: 'note', text: 'Ensure the condition eventually becomes false, or break.' },
+      ],
+      puzzle: {
+        kind: 'python',
+        prompt: 'Write `countdown(n)` returning `[n, n-1, …, 1]` (empty if n < 1) using a while loop.',
+        fnName: 'countdown',
+        starter: `def countdown(n):\n    pass\n`,
+        tests: [
+          { args: [3], expected: [3, 2, 1] },
+          { args: [1], expected: [1] },
+          { args: [0], expected: [] },
+        ],
+        hints: ['while n > 0', 'append then decrement', 'Return the list'],
+      },
+    },
+    {
+      id: 'p41',
+      name: 'The List Toolkit',
+      concept: 'List methods',
+      brief: 'append, extend, pop, insert — mutate a list in place.',
+      lesson: [
+        { type: 'p', text: 'Lists mutate: `append`, `extend`, `insert`, `pop`, `remove`, `sort`, `reverse`.' },
+        { type: 'code', code: `xs = [1, 2]\nxs.append(3)\nxs.extend([4])\nxs.pop()` },
+        { type: 'note', text: '`sort` mutates; `sorted` returns a new list.' },
+      ],
+      puzzle: {
+        kind: 'python',
+        prompt: 'Write `push_all(xs, items)` copying xs, extending with items, returning the new list without mutating xs.',
+        fnName: 'push_all',
+        starter: `def push_all(xs, items):\n    pass\n`,
+        tests: [
+          { args: [[1], [2, 3]], expected: [1, 2, 3] },
+          { args: [[], [1]], expected: [1] },
+        ],
+        hints: ['out = list(xs)', 'extend', 'return out'],
+      },
+    },
+    {
+      id: 'p42',
+      name: 'The Identity Gate',
+      concept: 'is vs ==',
+      brief: 'Same value, or the very same object — two different questions.',
+      lesson: [
+        { type: 'p', text: '`==` compares equality. `is` compares identity. Use `is` / `is not` for None.' },
+        { type: 'code', code: `a = [1]\nb = [1]\na == b  # True\na is b  # False` },
+        { type: 'note', text: 'Do not use `is` to compare numbers or strings for equality.' },
+      ],
+      puzzle: {
+        kind: 'python',
+        prompt: 'Write `is_missing(value)` returning True only when `value is None`.',
+        fnName: 'is_missing',
+        starter: `def is_missing(value):\n    pass\n`,
+        tests: [
+          { args: [null], expected: true },
+          { args: [0], expected: false },
+          { args: [''], expected: false },
+        ],
+        hints: ['value is None', 'Not ==', 'Return boolean'],
+      },
+    },
+  ],
+}

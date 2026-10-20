@@ -1,0 +1,221 @@
+/* Subset to Latin plus the punctuation the app actually sets in display type:
+   1.5MB of TTF down to 15KB of woff2. `swap` means the serif fallback shows
+   immediately and is replaced the moment the face lands, so a heading is never
+   invisible while it loads. */
+@font-face {
+  font-family: 'Bagel Fat One';
+  src: url('/fonts/BagelFatOne.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ============================================================
+   Hogwarts: night-time castle stone, candlelight, and parchment.
+   Everything downstream reads from these tokens, so the whole
+   castle re-lights if you change a value here.
+   ============================================================ */
+
+:root {
+  /* castle stone, from deepest shadow to lit wall */
+  --stone-900: #0b0a12;
+  --stone-850: #12101c;
+  --stone-800: #191627;
+  --stone-750: #221e33;
+  --stone-700: #2e2842;
+  --line: #3a3252;
+
+  /* ink on old paper, read by candle */
+  --text: #b6aecb;
+  --text-h: #f3ecdc;
+  --dim: #7b7192;
+
+  /* candlelight — the accent the whole castle is lit by */
+  --lantern: #e8b44a;
+  --lantern-soft: rgba(232, 180, 74, 0.14);
+  --lantern-line: rgba(232, 180, 74, 0.45);
+
+  /* the houses, used sparingly for state */
+  --gryffindor: #9b1c2e;
+  --slytherin: #1f5c3d;
+  --ravenclaw: #22407a;
+  --hufflepuff: #d2a017;
+
+  --good: #4fc07d;
+  --good-soft: rgba(79, 192, 125, 0.13);
+  --bad: #d64550;
+  --bad-soft: rgba(214, 69, 80, 0.13);
+
+  /* parchment, for anything meant to look written rather than lit */
+  --parchment: #e8dcc0;
+  --parchment-ink: #2b2417;
+  --parchment-line: #c4b492;
+
+  /* Two display faces, because one cannot do both jobs:
+       --display  the groovy face, for headings and the wordmark
+       --label    the classical serif, for the small-caps micro-labels — a
+                  fat groovy face at 11px with 0.16em tracking is a smear.
+     The serif stack ships with the OS; the groovy face is self-hosted below,
+     so neither one is fetched from anywhere and both work offline. */
+  --display: 'Bagel Fat One', 'Iowan Old Style', 'Palatino Linotype', Palatino,
+    Georgia, cursive;
+  --label: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua',
+    Georgia, 'Times New Roman', serif;
+  --sans: ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  font: 16px/1.65 var(--sans);
+  color-scheme: dark;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100svh;
+  background:
+    /* floating candles, high up */
+    radial-gradient(2px 2px at 12% 8%, rgba(232, 180, 74, 0.5), transparent 60%),
+    radial-gradient(2px 2px at 78% 5%, rgba(232, 180, 74, 0.38), transparent 60%),
+    radial-gradient(1.5px 1.5px at 44% 13%, rgba(232, 180, 74, 0.42), transparent 60%),
+    radial-gradient(1.5px 1.5px at 91% 17%, rgba(232, 180, 74, 0.3), transparent 60%),
+    radial-gradient(2px 2px at 27% 21%, rgba(232, 180, 74, 0.26), transparent 60%),
+    /* the glow they throw down the hall */
+    radial-gradient(1200px 700px at 50% -14%, rgba(232, 180, 74, 0.11), transparent 64%),
+    /* cold light through the high windows */
+    radial-gradient(900px 500px at 100% 30%, rgba(34, 64, 122, 0.16), transparent 70%),
+    var(--stone-900);
+  background-attachment: fixed;
+}
+
+#root {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 32px 20px 96px;
+}
+
+/* Reading views stay narrow — long prose lines are hard to follow. The map,
+   the library and the playgrounds want the full width. The Sorting is not in
+   this list: it is a fixed, full-viewport title card and sets its own bounds. */
+.room {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--text-h);
+  font-family: var(--display);
+  font-weight: 600;
+  letter-spacing: 0;
+  margin: 0;
+}
+
+p {
+  margin: 0 0 14px;
+}
+
+code {
+  font: 0.88em/1.5 var(--mono);
+  background: var(--stone-750);
+  color: #ddd3ef;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+:focus-visible {
+  outline: 2px solid var(--lantern);
+  outline-offset: 2px;
+}
+
+/* ---------- buttons ---------- */
+
+.btn {
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--stone-750);
+  color: var(--text-h);
+  padding: 9px 16px;
+  transition: background 0.15s, border-color 0.15s, transform 0.05s;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--stone-700);
+  border-color: var(--lantern-line);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+}
+
+.btn.primary {
+  background: var(--lantern);
+  border-color: var(--lantern);
+  color: #21150a;
+  font-weight: 600;
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: #ffb463;
+  border-color: #ffb463;
+}
+
+.btn.big {
+  padding: 12px 22px;
+  font-size: 17px;
+}
+
+.btn.ghost {
+  background: transparent;
+}
+
+.btn.small {
+  padding: 6px 12px;
+  font-size: 14px;
+}
+
+.btn.link {
+  background: none;
+  border: none;
+  color: var(--dim);
+  padding: 4px 0;
+}
+
+.btn.link:hover {
+  color: var(--lantern);
+}
+
+/* ---------- code blocks ---------- */
+
+.snippet {
+  font: 13.5px/1.65 var(--mono);
+  background: var(--stone-900);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--lantern-line);
+  border-radius: 8px;
+  color: #d6cdea;
+  padding: 14px 16px;
+  margin: 0 0 16px;
+  overflow-x: auto;
+  white-space: pre;
+  tab-size: 2;
+}

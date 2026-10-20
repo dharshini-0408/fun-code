@@ -1,0 +1,5805 @@
+/* ============================================================
+   The castle.
+
+   Two surfaces, and everything is one or the other:
+
+     STONE — the castle itself. Dark, candlelit, the chrome of the
+       app: the staircase, the floor plaques, the headers.
+     PARCHMENT — anything you actually read or write on. Lessons,
+       examinations, the Library, the try-it sheets.
+
+   Parchment blocks re-declare the colour tokens locally rather than
+   restyling every child, so a panel flips from stone to paper in one
+   place and everything nested inside follows.
+   ============================================================ */
+
+/* ============ shared furniture ============ */
+
+.brand {
+  font-family: var(--display);
+  font-size: 50px;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  margin-bottom: 10px;
+  color: var(--text-h);
+  text-shadow: 0 0 26px rgba(232, 180, 74, 0.25);
+}
+
+.brand span {
+  color: var(--lantern);
+}
+
+.tagline {
+  color: var(--dim);
+  max-width: 46ch;
+  margin: 0 auto 26px;
+  font-style: italic;
+}
+
+/* A flourish that separates the castle's sections. */
+.map-head::after,
+.lib-head::after,
+.pg-head::after,
+.sidehall-head::after {
+  content: "❦";
+  display: block;
+  color: var(--lantern);
+  opacity: 0.5;
+  font-size: 15px;
+  margin: 18px auto 0;
+}
+
+/* ---- buttons ---- */
+
+.btn {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--stone-800);
+  color: var(--text-h);
+  padding: 9px 17px;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    transform 0.16s ease;
+}
+
+.btn:hover {
+  border-color: var(--lantern-line);
+  transform: translateY(-1px);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* The primary action is a wax seal: deep red, pressed, slightly raised. */
+.btn.primary {
+  background: linear-gradient(180deg, #b02334, var(--gryffindor));
+  border-color: #6d1220;
+  color: #ffeede;
+  font-weight: 600;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 3px 0 #5d0f1b;
+}
+
+.btn.primary:hover {
+  background: linear-gradient(180deg, #c22a3c, #a81f30);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 4px 0 #5d0f1b;
+}
+
+.btn.primary:active {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 1px 0 #5d0f1b;
+}
+
+.btn.primary.big {
+  font-family: var(--display);
+  font-size: 17px;
+  padding: 12px 30px;
+  letter-spacing: 0.02em;
+}
+
+.btn.ghost {
+  background: transparent;
+}
+
+.btn.link {
+  background: none;
+  border: 0;
+  color: var(--dim);
+  padding: 4px 0;
+  text-decoration: none;
+}
+
+.btn.link:hover {
+  color: var(--lantern);
+  transform: none;
+}
+
+.btn.small {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+/* ---- progress ---- */
+
+.meter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 360px;
+  margin: 0 auto 22px;
+}
+
+.meter-bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 99px;
+  background: var(--stone-750);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.meter-bar span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #c9902c, var(--lantern));
+  box-shadow: 0 0 10px rgba(232, 180, 74, 0.55);
+  transition: width 0.5s ease;
+}
+
+.meter-text {
+  font-size: 13px;
+  color: var(--dim);
+  white-space: nowrap;
+  font-variant: small-caps;
+  letter-spacing: 0.05em;
+}
+
+.dimmed {
+  color: var(--dim);
+  font-size: 13.5px;
+}
+
+/* ============ the Sorting ============
+
+   A fixed title card. The page does not scroll here: the whole thing is sized
+   to the viewport and laid out as a column, so the ring always sits on screen
+   whatever the window is doing. */
+
+.picker {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  justify-items: center;
+  text-align: center;
+  padding: 0 0 clamp(14px, 3vh, 30px);
+  overflow: hidden;
+}
+
+/* The castle, centred on the screen rather than sitting on the floor. Fixed
+   and behind everything, sized by height so it keeps its proportions. */
+.picker::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: url('/castle.png') no-repeat center center;
+  background-size: auto min(78vh, 720px);
+  filter: drop-shadow(0 10px 60px rgba(217, 165, 128, 0.22));
+  opacity: 0.42;
+}
+
+/* Dusk behind it. */
+.picker::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    /* the light the castle stands in, kept on the centre line */
+    radial-gradient(880px 460px at 50% 50%, rgba(217, 165, 128, 0.19), transparent 72%),
+    /* dusk on the diagonal: near-black plum in the top-left corner, warming
+       across to dusty rose in the bottom-right */
+    linear-gradient(
+      145deg,
+      #08060f 0%,
+      #130c22 18%,
+      #211630 36%,
+      #33223a 54%,
+      #492d43 72%,
+      #603d4b 88%,
+      #734a54 100%
+    );
+}
+
+/* ---- the glitter ----
+
+   Two animations per mote, deliberately: the drift and the twinkle need
+   independent timing or every speck would brighten in lockstep with its own
+   rise, which reads as a pulse rather than a sparkle. The span carries the
+   drift; its pseudo-element carries the twinkle. */
+
+.glitter {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.mote {
+  position: absolute;
+  border-radius: 50%;
+  will-change: transform, opacity;
+  animation: mote-drift var(--dur) linear infinite;
+  animation-delay: var(--delay);
+}
+
+/* Steady by default: a constant, gentle glow that only drifts. */
+.mote::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff8e4 0%, var(--lantern) 45%, transparent 72%);
+  box-shadow: 0 0 6px rgba(232, 180, 74, 0.8);
+  opacity: 0.6;
+}
+
+/* The ones that sparkle. A short cycle with a long quiet stretch and two quick
+   flashes is what reads as a twinkle — a slow fade in and out only reads as a
+   pulse, which is what the whole field was doing before. */
+.mote.twinkles::before {
+  animation: mote-spark var(--tw) ease-in-out infinite;
+  animation-delay: var(--delay);
+}
+
+/* The larger motes get a cross of light, so the field has a few points that
+   read as sparkle rather than only as dust. */
+.mote.bright::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22px;
+  height: 1px;
+  transform: translate(-50%, -50%) scaleX(0.4);
+  transform-origin: center;
+  opacity: 0.35;
+  background: linear-gradient(90deg, transparent, rgba(255, 240, 200, 0.75), transparent);
+}
+
+/* The cross flares with the flash, rather than sitting at a constant width. */
+.mote.bright.twinkles::after {
+  animation: mote-flare var(--tw) ease-in-out infinite;
+  animation-delay: var(--delay);
+}
+
+@keyframes mote-drift {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--dx), var(--dy), 0);
+  }
+}
+
+/* Dark for most of the cycle, then two quick flashes close together. */
+@keyframes mote-spark {
+  0%,
+  58%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.5);
+  }
+  66% {
+    opacity: 1;
+    transform: scale(1.4);
+  }
+  74% {
+    opacity: 0.28;
+    transform: scale(0.75);
+  }
+  84% {
+    opacity: 0.9;
+    transform: scale(1.2);
+  }
+  92% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+}
+
+@keyframes mote-flare {
+  0%,
+  58%,
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scaleX(0.2);
+  }
+  66% {
+    opacity: 0.9;
+    transform: translate(-50%, -50%) scaleX(1);
+  }
+  74% {
+    opacity: 0.15;
+    transform: translate(-50%, -50%) scaleX(0.4);
+  }
+  84% {
+    opacity: 0.7;
+    transform: translate(-50%, -50%) scaleX(0.85);
+  }
+}
+
+/* ---- the fliers ---- */
+
+.picker-sky {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.flier {
+  position: absolute;
+  height: auto;
+  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.45));
+  will-change: transform;
+}
+
+/* The Anglia climbs the diagonal: in low from off the left, out high past the
+   top-right corner. The path is a straight diagonal — the intermediate frames
+   only change its tilt and give it a little lift, so it never reads as a
+   flat horizontal drift or a plain vertical rise. */
+.flier.anglia {
+  width: clamp(120px, 15vw, 215px);
+  top: 64%;
+  left: -26%;
+  animation: anglia-climb 32s linear infinite;
+}
+
+/* The artwork has the car's nose on the LEFT, but the flight path runs to the
+   right — so it has to be mirrored, or it flies tail-first. `scaleX(-1)` sits
+   last in each list, which means it is applied to the element FIRST: mirror,
+   then bank, then move. With the nose on the right, a negative rotation lifts
+   it, so the tilts stay negative and read as a climb. */
+@keyframes anglia-climb {
+  0% {
+    transform: translate(0, 0) rotate(-5deg) scaleX(-1);
+  }
+  25% {
+    transform: translate(33vw, -21vh) rotate(-11deg) scaleX(-1);
+  }
+  50% {
+    transform: translate(66vw, -40vh) rotate(-6deg) scaleX(-1);
+  }
+  75% {
+    transform: translate(99vw, -61vh) rotate(-13deg) scaleX(-1);
+  }
+  100% {
+    transform: translate(136vw, -84vh) rotate(-8deg) scaleX(-1);
+  }
+}
+
+/* ---- the top bar ----
+
+   Crest on the left, a glass pill of destinations in the middle, one way in on
+   the right. It floats over the scene rather than sitting on a solid band, so
+   the castle and the gradient keep running underneath it. */
+
+.topbar {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  padding: clamp(12px, 2.2vh, 22px) clamp(16px, 3vw, 36px);
+}
+
+.topbar-crest {
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+}
+
+/* Struck gold, the way the old centred wordmark was: a metallic gradient
+   clipped to the letterforms, over a hard shadow so it reads as metal rather
+   than yellow text. */
+.topbar-wordmark {
+  font-family: var(--display);
+  font-size: clamp(19px, 2.8vh, 27px);
+  font-weight: 700;
+  letter-spacing: 0.015em;
+  line-height: 1;
+  background: linear-gradient(
+    180deg,
+    #fdf3d4 0%,
+    #e8c268 34%,
+    #b8862c 58%,
+    #f2dda0 78%,
+    #9c6c1e 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6))
+    drop-shadow(0 0 22px rgba(232, 180, 74, 0.28));
+  transition: filter 0.2s ease;
+}
+
+.topbar-crest:hover .topbar-wordmark {
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6))
+    drop-shadow(0 0 30px rgba(232, 180, 74, 0.5));
+}
+
+.topbar-crest img {
+  height: clamp(46px, 6.4vh, 68px);
+  width: auto;
+  /* The artwork is a mid-brown that sinks into the dark ground, so it is
+     lifted toward the candlelight the rest of the castle is lit by. */
+  filter: brightness(1.42) saturate(1.15) contrast(1.04)
+    drop-shadow(0 3px 10px rgba(0, 0, 0, 0.55));
+  transition:
+    filter 0.2s ease,
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.topbar-crest:hover img {
+  transform: translateY(-3px) rotate(-4deg);
+  filter: brightness(1.55) saturate(1.2) contrast(1.04)
+    drop-shadow(0 4px 14px rgba(0, 0, 0, 0.6))
+    drop-shadow(0 0 22px rgba(232, 180, 74, 0.35));
+}
+
+/* The nav pill, built like the cards: a thick dark keyline, a fat radius and a
+   hard unblurred shadow so it sits above the page. The blur is kept so the
+   castle still smears behind it — chunky, but not opaque. */
+.topbar-nav {
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 999px;
+  border: 3px solid #150f22;
+  background: rgba(31, 24, 48, 0.78);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.3),
+    0 5px 0 #0d0918,
+    0 9px 22px rgba(0, 0, 0, 0.45);
+}
+
+.topbar-link {
+  padding: 9px clamp(12px, 1.4vw, 20px);
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: #cec5df;
+  font: inherit;
+  font-size: clamp(12px, 1.4vh, 14px);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease,
+    transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.topbar-link:hover {
+  color: #fff4e2;
+  background: rgba(255, 255, 255, 0.09);
+  transform: translateY(-1px);
+}
+
+/* The room you are standing in is a moulded gold token, with its own keyline
+   and its own little shadow inside the pill. */
+.topbar-link.on {
+  color: #241705;
+  font-weight: 700;
+  background: linear-gradient(180deg, #f5d894 0%, #e0ae42 58%, #c8912c 100%);
+  border: 2px solid #150f22;
+  padding: 7px clamp(11px, 1.3vw, 19px);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.16),
+    0 3px 0 #0d0918;
+}
+
+.topbar-link.on:hover {
+  transform: none;
+  background: linear-gradient(180deg, #f8e0a6 0%, #e6b84e 58%, #cf9832 100%);
+}
+
+/* The way in: the same moulded gold button as the carousel arrows, so the
+   two ends of the bar match. */
+.topbar-cta {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px clamp(16px, 1.8vw, 24px);
+  border-radius: 999px;
+  border: 3px solid #150f22;
+  background: linear-gradient(180deg, #f5d894 0%, #e0ae42 58%, #c8912c 100%);
+  color: #241705;
+  font: inherit;
+  font-size: clamp(12px, 1.4vh, 14px);
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.18),
+    0 5px 0 #0d0918,
+    0 9px 20px rgba(0, 0, 0, 0.45);
+  transition:
+    transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.16s ease;
+}
+
+.topbar-cta:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.18),
+    0 8px 0 #0d0918,
+    0 13px 26px rgba(0, 0, 0, 0.5),
+    0 0 30px rgba(232, 180, 74, 0.4);
+}
+
+/* Squashed onto its own shadow. */
+.topbar-cta:active {
+  transform: translateY(4px);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.2),
+    0 1px 0 #0d0918,
+    0 3px 8px rgba(0, 0, 0, 0.45);
+}
+
+.topbar-cta span {
+  transition: transform 0.16s ease;
+}
+
+.topbar-cta:hover span {
+  transform: translateX(3px);
+}
+
+/* Below the pill's natural width the three columns stop fitting; the bar
+   stacks and the nav scrolls sideways on its own. */
+@media (max-width: 980px) {
+  .topbar {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      'crest cta'
+      'nav   nav';
+    row-gap: 12px;
+  }
+
+  .topbar-crest {
+    grid-area: crest;
+  }
+
+  .topbar-cta {
+    grid-area: cta;
+  }
+
+  .topbar-nav {
+    grid-area: nav;
+    justify-self: stretch;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .topbar-nav::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 460px) {
+  .topbar-wordmark {
+    display: none;
+  }
+}
+
+/* ---- the ring ----
+
+   Cells are stacked on one spot and positioned purely by transform, which is
+   what lets a card cross from one end of the row to the other when the ring
+   loops. `--cell-gap` is read back by the component so the step it slides by
+   always matches the CSS. */
+
+.carousel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
+}
+
+.carousel-stage {
+  perspective: 1400px;
+  perspective-origin: 50% 50%;
+  width: 100vw;
+  overflow: hidden;
+  /* Content-height, NOT flex: 1. Stretching it to fill the row is what left a
+     canyon between the cards and the arrows — the stage grew and the controls
+     were pushed to the bottom of it. `.carousel` now centres the two together.
+     The padding is for the cards that come forward: at the furthest turn a
+     card projects ~20% larger, and that overflow needs somewhere to go. */
+  flex: none;
+  padding: 40px 0;
+  display: grid;
+  place-items: center;
+  cursor: grab;
+  touch-action: pan-y;
+}
+
+.carousel-stage:active {
+  cursor: grabbing;
+}
+
+.carousel-track {
+  --cell-gap: 34px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  transform-style: preserve-3d;
+}
+
+.carousel-cell {
+  grid-area: 1 / 1;
+  position: relative;
+  width: var(--card-w, 232px);
+  transform-style: preserve-3d;
+  transform-origin: 50% 50%;
+  transition:
+    transform 0.6s cubic-bezier(0.22, 0.61, 0.36, 1),
+    opacity 0.5s ease;
+  will-change: transform, opacity;
+}
+
+/* Back of the ring / wrap jump: invisible, no tween across the row. */
+.carousel-cell.snap {
+  transition: none;
+  pointer-events: none;
+}
+
+/* ---- the cards ----
+
+   Chunky and cartoonish, the way a mobile game draws a character card: a thick
+   dark outline, fat rounded corners, a glossy top half and a HARD offset
+   shadow underneath so the card sits above the page like a moulded plastic
+   token. Nothing here is subtle on purpose. */
+
+.gcard {
+  --accent: var(--lantern);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: var(--card-h, 322px);
+  padding: 16px 14px 18px;
+  border-radius: 28px;
+  /* The cartoon stroke. A thick dark keyline is what reads as "drawn". */
+  border: 4px solid #150f22;
+  background:
+    radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--accent) 42%, transparent), transparent 68%),
+    linear-gradient(180deg, #2a2140 0%, #171029 62%, #120c20 100%);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  overflow: hidden;
+  /* Hard, unblurred drop — the moulded-plastic look. The soft one behind it
+     just seats the card on the page. */
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -5px 0 rgba(0, 0, 0, 0.4),
+    0 8px 0 #0d0918,
+    0 10px 26px rgba(0, 0, 0, 0.55);
+  transition:
+    transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.16s ease;
+}
+
+/* The gloss: a bright wash over the top, cut off in a curve. */
+.gcard-gloss {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  top: 0;
+  height: 46%;
+  pointer-events: none;
+  border-radius: 0 0 50% 50% / 0 0 100% 100%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.19) 0%,
+    rgba(255, 255, 255, 0.07) 55%,
+    transparent 100%
+  );
+}
+
+/* A tilted ticket in the corner. */
+.gcard-badge {
+  position: absolute;
+  top: 12px;
+  left: -30px;
+  width: 118px;
+  padding: 4px 0;
+  transform: rotate(-38deg);
+  font-family: var(--label);
+  font-size: 9.5px;
+  font-variant: small-caps;
+  letter-spacing: 0.18em;
+  color: #150f22;
+  background: var(--accent);
+  border-bottom: 2px solid rgba(0, 0, 0, 0.28);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+/* ---- the mark, on its own fat disc ---- */
+
+.gcard-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 108px;
+  height: 108px;
+  flex: none;
+  margin-top: 6px;
+}
+
+.gcard-blob {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 4px solid #150f22;
+  background:
+    radial-gradient(circle at 50% 24%, rgba(255, 255, 255, 0.28), transparent 58%),
+    radial-gradient(circle at 50% 62%, color-mix(in srgb, var(--accent) 62%, transparent), color-mix(in srgb, var(--accent) 26%, #14101f));
+  box-shadow:
+    inset 0 -6px 0 rgba(0, 0, 0, 0.28),
+    0 5px 0 #0d0918;
+}
+
+.gcard-art .subject-mark {
+  position: relative;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.55));
+  transition: transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ---- the name plate ---- */
+
+.gcard-plate {
+  position: relative;
+  padding: 7px 20px;
+  margin-top: 4px;
+  border-radius: 14px;
+  border: 3px solid #150f22;
+  background: linear-gradient(180deg, #c2273a 0%, #8e1526 100%);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.26),
+    0 4px 0 #0d0918;
+}
+
+.gcard-name {
+  font-family: var(--display);
+  font-size: clamp(17px, 2.2vh, 22px);
+  line-height: 1.1;
+  color: #fff4e2;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+}
+
+/* ---- stars ---- */
+
+.gcard-stars {
+  display: flex;
+  gap: 3px;
+}
+
+.star {
+  width: 15px;
+  height: 15px;
+  background: #2c2440;
+  clip-path: polygon(
+    50% 0%,
+    61% 35%,
+    98% 35%,
+    68% 57%,
+    79% 91%,
+    50% 70%,
+    21% 91%,
+    32% 57%,
+    2% 35%,
+    39% 35%
+  );
+}
+
+.star.on {
+  background: #ffc93f;
+  filter: drop-shadow(0 0 5px rgba(255, 201, 63, 0.75));
+}
+
+/* ---- stat chips ---- */
+
+.gcard-chips {
+  display: flex;
+  gap: 7px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 2px solid #150f22;
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.13);
+  font-family: var(--label);
+  font-size: 9.5px;
+  font-variant: small-caps;
+  letter-spacing: 0.11em;
+  color: #cec5df;
+}
+
+.chip b {
+  font-family: var(--display);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: #fff4e2;
+}
+
+/* ---- progress ---- */
+
+.gcard-progress {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 84%;
+  margin-top: 2px;
+}
+
+.gcard-bar {
+  flex: 1;
+  height: 9px;
+  border-radius: 999px;
+  border: 2px solid #150f22;
+  background: #241c38;
+  overflow: hidden;
+}
+
+.gcard-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #7ee6a3, #35a866);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.35);
+  transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.gcard-pct {
+  font-family: var(--display);
+  font-size: 11px;
+  color: #7ee6a3;
+}
+
+/* ---- states ---- */
+
+/* Bouncy, with a slight tilt — it should feel like a token you picked up. */
+.gcard:hover:not(:disabled) {
+  transform: translateY(-6px) rotate(-1.2deg);
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -5px 0 rgba(0, 0, 0, 0.4),
+    0 14px 0 #0d0918,
+    0 18px 34px rgba(0, 0, 0, 0.6),
+    0 0 40px color-mix(in srgb, var(--accent) 34%, transparent);
+}
+
+.gcard:hover:not(:disabled) .subject-mark {
+  transform: scale(1.12) rotate(4deg);
+}
+
+/* Pressed: the card squashes onto its shadow. */
+.gcard:active:not(:disabled) {
+  transform: translateY(4px) rotate(0deg);
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.4),
+    0 2px 0 #0d0918,
+    0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.carousel-cell.centre .gcard {
+  border-color: #1d1430;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -5px 0 rgba(0, 0, 0, 0.4),
+    0 10px 0 #0d0918,
+    0 14px 30px rgba(0, 0, 0, 0.6),
+    0 0 46px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.gcard.locked {
+  cursor: default;
+  filter: grayscale(0.9) brightness(0.6);
+}
+
+.gcard-seal {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--display);
+  font-size: 15px;
+  letter-spacing: 0.16em;
+  color: rgba(255, 255, 255, 0.72);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
+  background: rgba(8, 6, 14, 0.55);
+}
+
+/* ---- the card at the front ---- */
+
+.carousel-cell.centre .gcard {
+  animation: card-afloat 3.4s ease-in-out infinite;
+}
+
+@keyframes card-afloat {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-9px) rotate(-1deg);
+  }
+}
+
+.carousel-cell.centre .gcard-blob {
+  animation: blob-bob 2.6s ease-in-out infinite;
+}
+
+@keyframes blob-bob {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* A glint travelling across the WHOLE card, not just the gloss panel at the
+   top — the gloss is only the upper 46%, so hanging the sweep off it meant the
+   shine stopped dead halfway down. This sits on the card itself, which clips
+   it to the rounded shape and lets it cross name, stars and chips too. */
+.carousel-cell.centre .gcard::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    102deg,
+    transparent 36%,
+    rgba(255, 255, 255, 0.13) 45%,
+    rgba(255, 255, 255, 0.34) 50%,
+    rgba(255, 255, 255, 0.13) 55%,
+    transparent 64%
+  );
+  transform: translateX(-140%);
+  animation: card-sweep 5.2s ease-in-out infinite;
+}
+
+@keyframes card-sweep {
+  0%,
+  66% {
+    transform: translateX(-140%);
+  }
+  100% {
+    transform: translateX(140%);
+  }
+}
+
+/* ---- the controls beneath ----
+
+   Same rules as the cards: thick dark keyline, fat radius, a hard unblurred
+   shadow so they sit above the page, and a press that squashes them onto it. */
+
+.carousel-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(14px, 2vw, 26px);
+  margin-top: clamp(10px, 1.8vh, 20px);
+}
+
+.carousel-arrow {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 4px solid #150f22;
+  background: linear-gradient(180deg, #f5d894 0%, #e0ae42 55%, #c8912c 100%);
+  color: #241705;
+  font-family: var(--display);
+  font-size: 21px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -4px 0 rgba(0, 0, 0, 0.18),
+    0 5px 0 #0d0918,
+    0 8px 18px rgba(0, 0, 0, 0.5);
+  transition:
+    transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.16s ease;
+}
+
+.carousel-arrow:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -4px 0 rgba(0, 0, 0, 0.18),
+    0 9px 0 #0d0918,
+    0 14px 26px rgba(0, 0, 0, 0.55),
+    0 0 30px rgba(232, 180, 74, 0.4);
+}
+
+/* Squashed onto its own shadow. */
+.carousel-arrow:active {
+  transform: translateY(4px);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.2),
+    0 1px 0 #0d0918,
+    0 3px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* A fat outlined track with a chunky pill sliding along it — the same build
+   as the progress bar on the cards, so the two read as one family. */
+.carousel-rail {
+  position: relative;
+  width: min(240px, 34vw);
+  height: 16px;
+  border-radius: 999px;
+  border: 3px solid #150f22;
+  background: #241c38;
+  box-shadow:
+    inset 0 3px 0 rgba(0, 0, 0, 0.32),
+    0 3px 0 #0d0918;
+}
+
+.carousel-rail-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f5d894 0%, #e0ae42 60%, #c8912c 100%);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.5),
+    0 0 12px rgba(232, 180, 74, 0.55);
+  transition: left 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (max-width: 720px) {
+  .carousel-track {
+    --cell-gap: 22px;
+  }
+
+  .carousel-cell {
+    --card-w: 190px;
+  }
+
+  .gcard {
+    --card-h: 276px;
+  }
+
+}
+
+/* A short window has no room for a tall card. */
+@media (max-height: 720px) {
+  .gcard {
+    --card-h: 262px;
+  }
+
+
+  .picker::after {
+    background-size: auto min(58vh, 520px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .carousel-cell,
+  .carousel-rail-fill {
+    transition: none;
+  }
+
+  /* The front card holds still — lit, but not moving. */
+  .carousel-cell.centre .gcard,
+  .carousel-cell.centre .gcard-blob,
+  .carousel-cell.centre .gcard::after {
+    animation: none;
+  }
+
+  .carousel-cell.centre .gcard::after {
+    display: none;
+  }
+
+  .flier {
+    animation: none;
+  }
+
+  /* Motes hold still and dim rather than drifting and flashing. */
+  .mote,
+  .mote.twinkles::before,
+  .mote.bright.twinkles::after {
+    animation: none;
+  }
+
+  .mote {
+    opacity: 0.5;
+  }
+
+  /* Parked out of the way rather than left mid-flight over the cards. */
+  .flier.anglia {
+    top: 6%;
+    left: auto;
+    right: 4%;
+    transform: rotate(-8deg) scaleX(-1);
+  }
+}
+
+/* ============ the castle map ============ */
+
+.map-head {
+  text-align: center;
+  padding: 22px 0 34px;
+}
+
+.map-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+  margin: 28px auto 0;
+  max-width: 680px;
+  text-align: left;
+}
+
+.shortcut {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 14px 16px;
+  border-radius: 3px 3px 11px 11px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--stone-800), var(--stone-850));
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  transition:
+    border-color 0.16s ease,
+    transform 0.16s ease;
+}
+
+.shortcut:hover {
+  border-color: var(--lantern-line);
+  transform: translateY(-3px);
+}
+
+.map-shortcuts .shortcut:nth-child(1) {
+  border-top: 2px solid var(--slytherin);
+}
+
+.map-shortcuts .shortcut:nth-child(2) {
+  border-top: 2px solid var(--hufflepuff);
+}
+
+.map-shortcuts .shortcut:nth-child(3) {
+  border-top: 2px solid var(--ravenclaw);
+}
+
+.shortcut-icon {
+  font-size: 19px;
+}
+
+.shortcut-name {
+  font-family: var(--display);
+  font-size: 15.5px;
+  color: var(--text-h);
+}
+
+.shortcut-blurb {
+  font-size: 11.5px;
+  color: var(--dim);
+}
+
+/* ---- floor plaques ---- */
+
+.world {
+  position: relative;
+  margin-bottom: 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--stone-850), var(--stone-900));
+  padding: 18px 20px 18px 24px;
+  overflow: hidden;
+}
+
+/* A house banner hanging down the left edge of every floor. */
+.world::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, var(--lantern), transparent);
+  opacity: 0.6;
+}
+
+.world.shut {
+  opacity: 0.5;
+}
+
+.world.shut::before {
+  background: var(--line);
+}
+
+.world-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.world-head > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.world-head h2 {
+  font-family: var(--display);
+  font-size: 20px;
+}
+
+.world-head p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--dim);
+  font-style: italic;
+}
+
+.world-icon {
+  font-size: 25px;
+}
+
+.world-count {
+  font-family: var(--label);
+  font-size: 15px;
+  color: var(--lantern);
+  white-space: nowrap;
+}
+
+.world-bar {
+  height: 5px;
+  border-radius: 99px;
+  background: var(--stone-750);
+  overflow: hidden;
+  margin-top: 13px;
+}
+
+.world-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #c9902c, var(--lantern));
+  transition: width 0.5s ease;
+}
+
+/* ---- the Duelling Club ---- */
+
+.practice-block {
+  margin-top: 30px;
+  border-color: var(--lantern-line);
+}
+
+.practice-block::before {
+  background: linear-gradient(180deg, var(--gryffindor), transparent);
+  opacity: 0.8;
+}
+
+.level-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 11px;
+  margin-top: 16px;
+}
+
+.level-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 13px 15px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--stone-800);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    transform 0.16s ease;
+}
+
+.level-card:hover {
+  border-color: var(--lantern-line);
+  transform: translateY(-2px);
+}
+
+.level-name {
+  font-family: var(--display);
+  font-size: 16px;
+  color: var(--text-h);
+}
+
+.level-blurb {
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.level-concepts {
+  font-size: 11px;
+  color: var(--dim);
+  font-style: italic;
+}
+
+.map-foot {
+  text-align: center;
+  margin-top: 34px;
+}
+
+/* ============ the moving staircase ============ */
+
+.stair {
+  position: relative;
+  margin: 0 auto 40px;
+  max-width: 760px;
+}
+
+.stair-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Drawn in a horizontally stretched user space, so the stroke has to opt out
+   of scaling or it would squash with the box. */
+.stair-rail {
+  fill: none;
+  stroke: var(--stone-700);
+  stroke-width: 2;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 3 9;
+}
+
+/* The stretch you have already climbed keeps its candlelight. */
+.stair-rail.lit {
+  stroke: var(--lantern-line);
+  filter: drop-shadow(0 0 4px rgba(232, 180, 74, 0.45));
+}
+
+.landing {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  width: 300px;
+}
+
+/* Landings left of the axis hang their plate to the left, so no nameplate
+   ever crosses the banister. */
+.landing.left {
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+  transform: translate(-100%, -50%);
+  padding-right: 24px;
+  text-align: right;
+}
+
+.landing.right {
+  transform: translate(0, -50%);
+  padding-left: 24px;
+}
+
+/* A shield, not a circle. */
+.landing-crest {
+  flex: none;
+  width: 60px;
+  height: 60px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, var(--stone-750), var(--stone-850));
+  border: 2px solid var(--line);
+  border-radius: 50% 50% 46% 46% / 40% 40% 60% 60%;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.45);
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.landing-n {
+  font-family: var(--display);
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--dim);
+}
+
+.landing.open .landing-crest {
+  border-color: var(--lantern-line);
+}
+
+.landing.open .landing-n {
+  color: var(--lantern);
+}
+
+.landing.done .landing-crest {
+  border-color: rgba(79, 192, 125, 0.5);
+  background: linear-gradient(
+    180deg,
+    rgba(79, 192, 125, 0.2),
+    var(--stone-850)
+  );
+}
+
+.landing.done .landing-n {
+  color: var(--good);
+}
+
+.landing.locked {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+/* The step you are standing on is the one still lit. */
+.landing.current .landing-crest {
+  border-color: var(--lantern);
+  animation: flicker 3.6s ease-in-out infinite;
+}
+
+@keyframes flicker {
+  0%,
+  100% {
+    box-shadow:
+      0 0 22px var(--lantern-soft),
+      0 0 0 5px var(--lantern-soft),
+      0 5px 0 rgba(0, 0, 0, 0.45);
+  }
+  45% {
+    box-shadow:
+      0 0 36px rgba(232, 180, 74, 0.32),
+      0 0 0 7px var(--lantern-soft),
+      0 5px 0 rgba(0, 0, 0, 0.45);
+  }
+}
+
+.landing:not(:disabled):hover .landing-crest {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 0 rgba(0, 0, 0, 0.45);
+}
+
+.landing-plate {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.landing-name {
+  font-family: var(--display);
+  font-size: 15px;
+  color: var(--text-h);
+  line-height: 1.25;
+}
+
+.landing.locked .landing-name {
+  color: var(--dim);
+}
+
+.landing-concept {
+  font-size: 11px;
+  color: var(--dim);
+  line-height: 1.3;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing.current .landing-crest {
+    animation: none;
+  }
+}
+
+/* A phone cannot afford a 300px plate either side of the axis, so the
+   staircase straightens into a single column. */
+@media (max-width: 620px) {
+  .stair-svg {
+    display: none;
+  }
+
+  .stair {
+    height: auto !important;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .landing,
+  .landing.left,
+  .landing.right {
+    position: static;
+    transform: none;
+    width: 100%;
+    flex-direction: row;
+    text-align: left;
+    padding: 0;
+  }
+}
+
+/* ============ a lesson ============ */
+
+.room-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.room-count {
+  font-size: 12px;
+  color: var(--dim);
+  font-variant: small-caps;
+  letter-spacing: 0.07em;
+}
+
+.room-title {
+  font-family: var(--display);
+  font-size: 37px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+/* A pressed wax seal, for a lesson already passed. */
+.solved-tag {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-variant: small-caps;
+  letter-spacing: 0.12em;
+  padding: 5px 13px;
+  border-radius: 99px;
+  background: linear-gradient(180deg, #b02334, var(--gryffindor));
+  border: 1px solid #6d1220;
+  color: #ffeede;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.concept {
+  color: var(--lantern);
+  font-variant: small-caps;
+  letter-spacing: 0.09em;
+  font-size: 14px;
+  margin-bottom: 14px;
+}
+
+.brief {
+  color: var(--text);
+  font-style: italic;
+  font-size: 16.5px;
+  border-left: 2px solid var(--lantern-line);
+  padding-left: 16px;
+  margin-bottom: 28px;
+}
+
+/* ============ parchment ============
+
+   Anything you read or write on. The tokens are re-declared inside, so every
+   nested rule keeps working without being restyled one by one. */
+
+.panel,
+.lib-main,
+.tryit {
+  --text: var(--parchment-ink);
+  --text-h: #1d1810;
+  --dim: #6f5f43;
+  --line: var(--parchment-line);
+  --stone-900: #ded0b1;
+  --stone-850: #e3d6b9;
+  --stone-800: #e8dcc0;
+  --stone-750: #d3c39e;
+  --stone-700: #c0ad85;
+
+  position: relative;
+  color: var(--text);
+  background:
+    radial-gradient(680px 340px at 12% 0%, #f0e6cf, transparent 70%),
+    radial-gradient(520px 300px at 88% 100%, #dfd0ad, transparent 70%),
+    var(--parchment);
+  border: 1px solid #a4906a;
+  border-radius: 4px;
+  padding: 24px 26px;
+  margin-bottom: 24px;
+  box-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.3),
+    0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+/* Torn, uneven edges rather than a crisp rectangle. */
+.panel,
+.lib-main {
+  border-radius: 3px 14px 4px 12px / 12px 3px 14px 4px;
+}
+
+.panel h1,
+.panel h2,
+.panel h3,
+.lib-main h1,
+.lib-main h2,
+.lib-main h3 {
+  color: var(--text-h);
+}
+
+.panel-title {
+  font-family: var(--label);
+  font-size: 13px;
+  font-variant: small-caps;
+  letter-spacing: 0.16em;
+  color: #7a2530;
+  margin-bottom: 16px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--parchment-line);
+}
+
+.lesson p {
+  margin: 0 0 14px;
+  color: var(--parchment-ink);
+}
+
+.lesson code,
+.prompt code,
+.note code,
+.hint code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(122, 37, 48, 0.1);
+  border: 1px solid rgba(122, 37, 48, 0.18);
+  color: #6d2029;
+}
+
+/* Worked examples are ink on the page, boxed and ruled. */
+.snippet {
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 15px 17px;
+  margin: 0 0 16px;
+  border-radius: 3px;
+  background: #f2e9d4;
+  border: 1px solid var(--parchment-line);
+  border-left: 3px solid #7a2530;
+  color: #241d12;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* A margin note in the scribe's own hand. */
+.note {
+  position: relative;
+  font-style: italic;
+  padding: 11px 15px 11px 17px;
+  margin: 0 0 16px;
+  border-left: 3px solid var(--hufflepuff);
+  background: rgba(210, 160, 23, 0.12);
+  border-radius: 0 6px 6px 0;
+}
+
+.note-mark {
+  display: block;
+  font-style: normal;
+  font-variant: small-caps;
+  letter-spacing: 0.13em;
+  font-size: 11px;
+  color: #8a6a12;
+  margin-bottom: 3px;
+}
+
+.prompt {
+  font-size: 16.5px;
+  color: var(--parchment-ink);
+  margin-bottom: 18px;
+}
+
+/* ============ the examination ============ */
+
+/* The editor stays ink-dark even on parchment — you write with a quill, and
+   this is the inkwell. */
+.editor {
+  display: flex;
+  border-radius: 6px;
+  border: 1px solid #4a3f2c;
+  background: #16130f;
+  overflow: hidden;
+  margin-bottom: 13px;
+  box-shadow: inset 0 2px 12px rgba(0, 0, 0, 0.6);
+}
+
+.editor-gutter {
+  display: flex;
+  flex-direction: column;
+  padding: 13px 9px 13px 13px;
+  background: #100e0b;
+  border-right: 1px solid #33291c;
+  user-select: none;
+  text-align: right;
+}
+
+.editor-gutter span {
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.65;
+  color: #6a5a3c;
+}
+
+.editor-area {
+  flex: 1;
+  border: 0;
+  outline: none;
+  resize: vertical;
+  padding: 13px 15px;
+  background: transparent;
+  color: #f0e4c8;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.65;
+  caret-color: var(--lantern);
+}
+
+.run-row {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  flex-wrap: wrap;
+  margin-bottom: 13px;
+}
+
+/* ---- the verdict ---- */
+
+.report {
+  border-radius: 6px;
+  border: 1px solid var(--parchment-line);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  background: #f0e7d1;
+}
+
+.report.pass {
+  border-color: rgba(31, 92, 61, 0.5);
+  background: rgba(31, 92, 61, 0.13);
+}
+
+.report.fail {
+  border-color: rgba(122, 37, 48, 0.4);
+  background: rgba(122, 37, 48, 0.09);
+}
+
+.verdict {
+  font-family: var(--display);
+  font-size: 16px;
+  margin-bottom: 10px;
+  color: var(--text-h);
+}
+
+.report.pass .verdict {
+  color: #1a5335;
+}
+
+.report.fail .verdict {
+  color: #7a2530;
+}
+
+.fatal {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: #7a2530;
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+.checks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.checks li {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  padding: 5px 0;
+  border-bottom: 1px dashed var(--parchment-line);
+  color: #3a2f1e;
+}
+
+.checks li:last-child {
+  border-bottom: 0;
+}
+
+.checks li code {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: #241d12;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+.detail b {
+  color: #7a2530;
+  font-weight: 600;
+}
+
+.mark {
+  display: inline-block;
+  width: 1.4em;
+  font-weight: 700;
+}
+
+.checks li.ok .mark {
+  color: #1a5335;
+}
+
+.checks li.no .mark {
+  color: #7a2530;
+}
+
+.detail,
+.explain {
+  display: block;
+  padding-left: 1.4em;
+  color: #6f5f43;
+  font-size: 12px;
+}
+
+.logs {
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed var(--parchment-line);
+}
+
+.log {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: #57492f;
+  margin: 0 0 3px;
+  white-space: pre-wrap;
+}
+
+/* ---- choice and order locks ---- */
+
+.options {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  padding: 12px 15px;
+  border-radius: 6px;
+  border: 1px solid var(--parchment-line);
+  background: #f0e7d1;
+  color: var(--parchment-ink);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.option:hover {
+  border-color: #7a2530;
+}
+
+.option.picked {
+  border-color: #7a2530;
+  background: rgba(122, 37, 48, 0.12);
+}
+
+.option.pass {
+  border-color: rgba(31, 92, 61, 0.6);
+  background: rgba(31, 92, 61, 0.16);
+}
+
+.option.fail {
+  border-color: rgba(122, 37, 48, 0.6);
+  background: rgba(122, 37, 48, 0.14);
+}
+
+.order-list {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* Each line is a strip of parchment you can pick up and move. */
+.order-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 13px;
+  border-radius: 6px;
+  border: 1px solid var(--parchment-line);
+  background: #f0e7d1;
+  cursor: grab;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.order-list li:active {
+  cursor: grabbing;
+}
+
+.order-list li:hover {
+  border-color: #7a2530;
+}
+
+.order-list li.right {
+  border-color: rgba(31, 92, 61, 0.6);
+  background: rgba(31, 92, 61, 0.15);
+}
+
+.order-list li.wrong {
+  border-color: rgba(122, 37, 48, 0.6);
+  background: rgba(122, 37, 48, 0.13);
+}
+
+.order-list code {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--parchment-ink);
+  background: none;
+  border: 0;
+  padding: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* The numbered wax bead at the head of each line. */
+.step {
+  flex: none;
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(122, 37, 48, 0.13);
+  border: 1px solid rgba(122, 37, 48, 0.32);
+  font-family: var(--display);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #7a2530;
+}
+
+.nudge {
+  flex: none;
+  display: flex;
+  gap: 4px;
+}
+
+.nudge button {
+  width: 25px;
+  height: 25px;
+  border-radius: 6px;
+  border: 1px solid var(--parchment-line);
+  background: rgba(0, 0, 0, 0.05);
+  color: #6f5f43;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.nudge button:hover:not(:disabled) {
+  border-color: #7a2530;
+  color: #7a2530;
+}
+
+.nudge button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* The lettered bullet on a multiple-choice option. */
+.bullet {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin-right: 10px;
+  border-radius: 50%;
+  background: rgba(122, 37, 48, 0.13);
+  border: 1px solid rgba(122, 37, 48, 0.32);
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 12px;
+  color: #7a2530;
+  vertical-align: middle;
+}
+
+/* ---- whispers ---- */
+
+.hints {
+  margin-top: 18px;
+  padding-top: 15px;
+  border-top: 1px dashed var(--parchment-line);
+}
+
+.hint {
+  font-style: italic;
+  font-size: 14px;
+  color: #4a3d28;
+  padding: 9px 14px;
+  border-radius: 6px;
+  background: rgba(34, 64, 122, 0.09);
+  border-left: 2px solid var(--ravenclaw);
+  margin-bottom: 9px;
+}
+
+.hint-n {
+  display: block;
+  font-style: normal;
+  font-variant: small-caps;
+  letter-spacing: 0.13em;
+  font-size: 10.5px;
+  color: var(--ravenclaw);
+  margin-bottom: 2px;
+}
+
+/* ---- passing ---- */
+
+.escape {
+  text-align: center;
+  padding: 30px 22px;
+  border-radius: 12px;
+  border: 1px solid var(--lantern-line);
+  background:
+    radial-gradient(
+      500px 220px at 50% 0%,
+      rgba(232, 180, 74, 0.14),
+      transparent 70%
+    ),
+    var(--stone-850);
+}
+
+.escape.fresh {
+  animation: unbolt 0.7s ease;
+}
+
+@keyframes unbolt {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.escape-line {
+  font-family: var(--display);
+  font-size: 19px;
+  font-style: italic;
+  color: var(--text-h);
+  margin-bottom: 18px;
+}
+
+/* ============ the Library ============ */
+
+.library,
+.playground,
+.map {
+  animation: arrive 0.4s ease;
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .library,
+  .playground,
+  .map,
+  .escape.fresh {
+    animation: none;
+  }
+}
+
+.lib-head {
+  text-align: center;
+  padding: 20px 0 26px;
+}
+
+.lib-body {
+  display: grid;
+  grid-template-columns: 244px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+
+/* The shelf. Stone, because it is furniture, not paper. */
+.lib-nav {
+  position: sticky;
+  top: 20px;
+  max-height: calc(100svh - 40px);
+  overflow-y: auto;
+  padding: 16px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--stone-850), var(--stone-900));
+  scrollbar-width: thin;
+}
+
+.lib-search {
+  width: 100%;
+  padding: 9px 12px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--stone-900);
+  color: var(--text-h);
+  font: inherit;
+  font-size: 13px;
+}
+
+.lib-search::placeholder {
+  color: var(--dim);
+  font-style: italic;
+}
+
+.lib-search:focus {
+  outline: none;
+  border-color: var(--lantern-line);
+  box-shadow: 0 0 0 3px var(--lantern-soft);
+}
+
+.lib-seg {
+  margin-bottom: 18px;
+}
+
+.lib-seg-name {
+  font-family: var(--label);
+  font-size: 12px;
+  font-variant: small-caps;
+  letter-spacing: 0.11em;
+  color: var(--lantern);
+  margin-bottom: 8px;
+}
+
+.lib-nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-left: 1px solid var(--line);
+}
+
+.lib-link {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 11px;
+  border: 0;
+  border-left: 2px solid transparent;
+  margin-left: -1px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 0 7px 7px 0;
+}
+
+.lib-link:hover {
+  color: var(--text-h);
+  background: var(--stone-800);
+}
+
+.lib-link.on {
+  color: var(--lantern);
+  border-left-color: var(--lantern);
+  background: var(--lantern-soft);
+}
+
+/* Long topic names must not push the star off the shelf. */
+.lib-link-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lib-star {
+  flex: none;
+  color: var(--good);
+  font-size: 11px;
+}
+
+/* The open book. */
+.lib-main {
+  padding: 34px 38px;
+}
+
+.lib-crumb {
+  font-variant: small-caps;
+  letter-spacing: 0.13em;
+  font-size: 12px;
+  color: #7a2530;
+  margin-bottom: 3px;
+}
+
+.lib-title {
+  font-family: var(--display);
+  font-size: 33px;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--parchment-line);
+}
+
+/* Panels nested inside the open book are ruled sections of the same page,
+   not separate sheets stacked on it. */
+.lib-main .panel {
+  background: rgba(0, 0, 0, 0.035);
+  border: 1px solid var(--parchment-line);
+  border-radius: 6px;
+  box-shadow: none;
+  padding: 20px 22px;
+}
+
+@media (max-width: 800px) {
+  .lib-body {
+    grid-template-columns: 1fr;
+  }
+
+  .lib-nav {
+    position: static;
+    max-height: 280px;
+  }
+
+  .lib-main {
+    padding: 24px 22px;
+  }
+}
+
+/* ============ try-it sheets ============ */
+
+.tryit-open {
+  margin: 0 0 14px;
+  border-color: var(--parchment-line);
+  color: #7a2530;
+  background: rgba(122, 37, 48, 0.07);
+}
+
+.tryit-open:hover {
+  border-color: #7a2530;
+}
+
+.tryit {
+  border-radius: 8px;
+  padding: 15px;
+  box-shadow: none;
+  border: 1px solid var(--parchment-line);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.tryit-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 11px;
+}
+
+.tryit-title {
+  flex: 1;
+  font-family: var(--label);
+  font-size: 12px;
+  font-variant: small-caps;
+  letter-spacing: 0.13em;
+  color: #7a2530;
+}
+
+.tryit-out {
+  margin-top: 12px;
+  padding: 11px 13px;
+  border-radius: 6px;
+  background: #16130f;
+  border: 1px solid #4a3f2c;
+}
+
+.tryit-out.bad {
+  border-color: rgba(214, 69, 80, 0.5);
+}
+
+/* Console output is always ink-dark, wherever it appears. */
+.out-line {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  margin: 0 0 4px;
+  color: #f0e4c8;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.out-line:last-child {
+  margin-bottom: 0;
+}
+
+.out-line.err {
+  color: #ef8189;
+}
+
+.out-line.val {
+  color: #7fd6a1;
+}
+
+.out-line.dimmed {
+  color: #8d7d5d;
+  font-family: var(--sans);
+  font-style: italic;
+}
+
+.out-mark {
+  color: #6a5a3c;
+  margin-right: 8px;
+}
+
+/* ============ the Room of Requirement ============ */
+
+.pg-head {
+  text-align: center;
+  padding: 20px 0 22px;
+}
+
+.pg-tabs {
+  display: inline-flex;
+  gap: 5px;
+  padding: 5px;
+  border-radius: 11px;
+  background: var(--stone-850);
+  border: 1px solid var(--line);
+  margin-top: 8px;
+}
+
+.pg-tab {
+  padding: 8px 17px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--dim);
+  font: inherit;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.pg-tab:hover {
+  color: var(--text-h);
+}
+
+.pg-tab.on {
+  background: var(--stone-750);
+  color: var(--lantern);
+  box-shadow: inset 0 0 0 1px var(--lantern-line);
+}
+
+.pg-body {
+  display: grid;
+  gap: 20px;
+}
+
+.pg-body.split {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+@media (max-width: 900px) {
+  .pg-body.split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pg-pane {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--stone-850), var(--stone-900));
+  padding: 15px;
+}
+
+.pg-pane-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--label);
+  font-size: 12px;
+  font-variant: small-caps;
+  letter-spacing: 0.11em;
+  color: var(--lantern);
+  margin-bottom: 11px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.pg-console,
+.pg-preview {
+  min-height: 240px;
+  border-radius: 7px;
+  border: 1px solid #4a3f2c;
+  background: #16130f;
+  padding: 13px 14px;
+}
+
+/* The preview is the one place the learner's own markup renders, so it gets
+   plain, readable defaults instead of inheriting the castle wholesale. */
+.pg-preview {
+  color: #f0e4c8;
+  font-family: var(--sans);
+}
+
+.pg-preview h1,
+.pg-preview h2,
+.pg-preview h3 {
+  color: #f6ecd6;
+}
+
+.pg-preview button {
+  font: inherit;
+  padding: 7px 14px;
+  margin: 0 7px 7px 0;
+  border-radius: 8px;
+  border: 1px solid var(--lantern-line);
+  background: var(--lantern-soft);
+  color: var(--lantern);
+  cursor: pointer;
+}
+
+.pg-preview button:hover {
+  background: rgba(232, 180, 74, 0.24);
+}
+
+.pg-preview input,
+.pg-preview select,
+.pg-preview textarea {
+  font: inherit;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid #4a3f2c;
+  background: #0f0d0a;
+  color: #f0e4c8;
+}
+
+.pg-warn {
+  font-size: 11.5px;
+  color: var(--dim);
+  font-style: italic;
+  margin: 10px 0 0;
+}
+
+.playground .editor {
+  margin-bottom: 14px;
+}
+
+/* ============ the portrait ============ */
+
+.tutor-open {
+  margin-top: 18px;
+  border-color: var(--parchment-line);
+  color: #2c3f6b;
+  background: rgba(34, 64, 122, 0.08);
+}
+
+.tutor-open:hover {
+  border-color: var(--ravenclaw);
+}
+
+/* A framed portrait hanging on the parchment: heavy gilt border, dark canvas. */
+.tutor {
+  margin-top: 20px;
+  padding: 18px;
+  border-radius: 6px;
+  border: 3px solid #8a6a2a;
+  outline: 1px solid #5b4418;
+  outline-offset: 2px;
+  background: linear-gradient(180deg, #1b1730, #12101c);
+  box-shadow:
+    inset 0 0 40px rgba(0, 0, 0, 0.6),
+    0 8px 24px rgba(0, 0, 0, 0.4);
+  color: var(--text);
+}
+
+.tutor h1,
+.tutor h2,
+.tutor h3 {
+  color: #f3ecdc;
+}
+
+.tutor-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 13px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid #3a3252;
+}
+
+.tutor-badge {
+  font-size: 10.5px;
+  font-variant: small-caps;
+  letter-spacing: 0.09em;
+  padding: 3px 10px;
+  border-radius: 99px;
+  border: 1px solid var(--lantern-line);
+  color: var(--lantern);
+  background: var(--lantern-soft);
+}
+
+.tutor-note,
+.tutor-warn {
+  font-size: 12.5px;
+  color: #8f85a8;
+  font-style: italic;
+  margin: 0 0 10px;
+}
+
+.tutor-warn {
+  color: #d9a24c;
+}
+
+.tutor-bar {
+  margin-bottom: 8px;
+}
+
+.model-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.model {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  flex-wrap: wrap;
+  padding: 10px 13px;
+  border-radius: 8px;
+  border: 1px solid #3a3252;
+  background: #191627;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.model.picked {
+  border-color: var(--lantern-line);
+  background: var(--lantern-soft);
+}
+
+.model-label {
+  color: #f3ecdc;
+  font-weight: 600;
+}
+
+.model-size {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--lantern);
+}
+
+.model-note {
+  flex-basis: 100%;
+  font-size: 11.5px;
+  color: #8f85a8;
+}
+
+.tutor-answer {
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: #ded6ea;
+  white-space: pre-wrap;
+  padding: 13px 15px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.28);
+  border-left: 2px solid var(--lantern-line);
+  margin-bottom: 12px;
+}
+
+.tutor-form {
+  display: flex;
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.tutor-input {
+  flex: 1;
+  padding: 10px 13px;
+  border-radius: 8px;
+  border: 1px solid #3a3252;
+  background: #12101c;
+  color: #f3ecdc;
+  font: inherit;
+  font-size: 13.5px;
+}
+
+.tutor-input::placeholder {
+  color: #7b7192;
+  font-style: italic;
+}
+
+.tutor-input:focus {
+  outline: none;
+  border-color: var(--lantern-line);
+}
+
+.tutor-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 11px;
+}
+
+.tutor-suggestions .btn {
+  font-size: 12px;
+  padding: 5px 11px;
+  border-color: #3a3252;
+  background: #191627;
+  color: #b6aecb;
+}
+
+/* ============ the markup examination ============ */
+
+/* Editor and preview side by side: for HTML and CSS, seeing the result is the
+   feedback loop, so the two must be visible at once. */
+.markup-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 820px) {
+  .markup-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.markup-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.markup-pane-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--label);
+  font-size: 11.5px;
+  font-variant: small-caps;
+  letter-spacing: 0.12em;
+  color: #7a2530;
+  margin-bottom: 7px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--parchment-line);
+}
+
+.markup-live {
+  font-variant: normal;
+  letter-spacing: 0.06em;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: rgba(31, 92, 61, 0.16);
+  border: 1px solid rgba(31, 92, 61, 0.4);
+  color: #1a5335;
+}
+
+.markup-pane .editor {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+/* The preview is a real page, so it gets a plain white ground rather than
+   the parchment around it — otherwise you cannot judge your own colours. */
+.markup-preview {
+  flex: 1;
+  min-height: 260px;
+  width: 100%;
+  border: 1px solid #a4906a;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.12);
+}
+
+/* The Library's inline try-it sheets are narrower than a full examination, so
+   the preview is shorter than the one beside a code editor. */
+.tryit-preview {
+  min-height: 160px;
+  margin-top: 11px;
+}
+
+.boot-note {
+  font-size: 12.5px;
+  color: #6f5f43;
+  font-style: italic;
+  padding: 10px 13px;
+  border-radius: 6px;
+  background: rgba(34, 64, 122, 0.09);
+  border-left: 2px solid var(--ravenclaw);
+  margin: 0 0 14px;
+}
+
+/* Subjects with no lessons written yet still hang on the wall, unlit. */
+
+
+
+/* ============ the Owlery ============
+
+   The one page in the castle that is about the person behind it rather than
+   the lessons: the contact cards on the left, the letter on the right, and an
+   owl waiting in the corner for anyone who cannot be bothered with either. */
+
+.help {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.help-head {
+  text-align: center;
+  margin-bottom: 34px;
+}
+
+.help-head .brand {
+  margin-top: 10px;
+}
+
+/* Same flourish the map, the library and the playgrounds carry. */
+.help-head::after {
+  content: '❦';
+  display: block;
+  color: var(--lantern);
+  opacity: 0.5;
+  font-size: 15px;
+  margin: 18px auto 0;
+}
+
+.help-body {
+  display: grid;
+  grid-template-columns: minmax(250px, 320px) 1fr;
+  gap: 26px;
+  align-items: start;
+}
+
+/* ---- the contact cards ---- */
+
+.help-cards {
+  display: grid;
+  gap: 10px;
+}
+
+.help-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--stone-800), var(--stone-850));
+  color: inherit;
+  text-decoration: none;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+  transition:
+    border-color 0.16s ease,
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.help-card:hover {
+  border-color: var(--lantern-line);
+  transform: translateY(-2px);
+  box-shadow:
+    0 5px 0 rgba(0, 0, 0, 0.35),
+    0 0 26px rgba(232, 180, 74, 0.16);
+}
+
+.help-card-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  border: 1px solid var(--lantern-line);
+  background: var(--lantern-soft);
+  color: var(--lantern);
+  font-size: 19px;
+  line-height: 1;
+}
+
+.help-card-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.help-card-label {
+  font-family: var(--label);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+/* Long addresses wrap rather than pushing the card wider than its column. */
+.help-card-value {
+  color: var(--text-h);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* A quiet second action under each card — not a button you should notice
+   before the card itself. */
+.help-copy {
+  justify-self: end;
+  margin: -4px 4px 6px;
+  padding: 3px 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: var(--dim);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    color 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.help-copy:hover {
+  color: var(--lantern);
+  border-color: var(--lantern-line);
+}
+
+.help-hours {
+  margin: 8px 2px 0;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--dim);
+}
+
+/* ---- the letter ---- */
+
+.help-form {
+  display: grid;
+  gap: 15px;
+  padding: 26px clamp(18px, 3vw, 30px) 24px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--stone-800), var(--stone-850));
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+}
+
+.help-form-title {
+  font-size: 24px;
+  margin-bottom: 2px;
+}
+
+.help-field {
+  display: grid;
+  gap: 6px;
+}
+
+.help-field > span {
+  font-family: var(--label);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.help-field input,
+.help-field textarea {
+  font: inherit;
+  width: 100%;
+  padding: 11px 13px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--stone-900);
+  color: var(--text-h);
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.help-field textarea {
+  resize: vertical;
+  min-height: 120px;
+  line-height: 1.6;
+}
+
+.help-field input::placeholder,
+.help-field textarea::placeholder {
+  color: var(--dim);
+}
+
+.help-field input:focus,
+.help-field textarea:focus {
+  outline: none;
+  border-color: var(--lantern-line);
+  box-shadow: 0 0 0 3px var(--lantern-soft);
+}
+
+.help-note {
+  margin: 0;
+  padding: 10px 13px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.help-note.bad {
+  border: 1px solid var(--bad);
+  background: var(--bad-soft);
+  color: #ffd7da;
+}
+
+.help-note.good {
+  border: 1px solid var(--good);
+  background: var(--good-soft);
+  color: #d8f7e4;
+}
+
+.help-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.help-fineprint {
+  font-size: 12px;
+  color: var(--dim);
+}
+
+@media (max-width: 780px) {
+  .help-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- the owl in the corner ----
+
+   Fixed to the bottom-right of the viewport on every page it is mounted on,
+   above everything else, and clear of the iOS home bar. */
+
+.chat {
+  position: fixed;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 60;
+  display: grid;
+  justify-items: end;
+  gap: 12px;
+}
+
+.chat-fab {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 999px;
+  border: 3px solid #150f22;
+  text-decoration: none;
+  background: linear-gradient(180deg, #f5d894 0%, #e0ae42 58%, #c8912c 100%);
+  color: #241705;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.18),
+    0 5px 0 #0d0918,
+    0 9px 20px rgba(0, 0, 0, 0.45);
+  transition:
+    transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.16s ease;
+}
+
+.chat-fab:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.18),
+    0 8px 0 #0d0918,
+    0 13px 26px rgba(0, 0, 0, 0.5),
+    0 0 30px rgba(232, 180, 74, 0.4);
+}
+
+.chat-fab:active {
+  transform: translateY(4px);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.4),
+    0 1px 0 #0d0918,
+    0 3px 8px rgba(0, 0, 0, 0.45);
+}
+
+.chat-fab.on {
+  font-size: 30px;
+}
+
+/* The panel never grows past the viewport on a phone, where 320px of fixed
+   width would hang off the left edge. */
+.chat-panel {
+  width: min(320px, calc(100vw - 36px));
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 3px solid #150f22;
+  background: rgba(31, 24, 48, 0.94);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.1),
+    0 6px 0 #0d0918,
+    0 16px 34px rgba(0, 0, 0, 0.55);
+  animation: chat-rise 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes chat-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+}
+
+.chat-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.chat-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--good);
+  box-shadow: 0 0 10px var(--good);
+}
+
+.chat-who {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+}
+
+.chat-who b {
+  color: var(--text-h);
+  font-size: 14px;
+}
+
+.chat-who small {
+  color: var(--dim);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.chat-x {
+  border: 0;
+  background: none;
+  color: var(--dim);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.chat-x:hover {
+  color: var(--text-h);
+}
+
+.chat-input {
+  font: inherit;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--stone-900);
+  color: var(--text-h);
+  resize: vertical;
+}
+
+.chat-input:focus {
+  outline: none;
+  border-color: var(--lantern-line);
+  box-shadow: 0 0 0 3px var(--lantern-soft);
+}
+
+.chat-send {
+  font: inherit;
+  font-weight: 700;
+  padding: 9px 14px;
+  border-radius: 10px;
+  border: 2px solid #150f22;
+  background: linear-gradient(180deg, #f5d894 0%, #e0ae42 58%, #c8912c 100%);
+  color: #241705;
+  cursor: pointer;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.45),
+    0 3px 0 #0d0918;
+}
+
+.chat-send:active {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.35),
+    0 1px 0 #0d0918;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-panel {
+    animation: none;
+  }
+}
+
+/* ============ English hall (Sorting-style sky) ============ */
+
+.english-hall {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  justify-items: center;
+  padding: 0 16px max(24px, env(safe-area-inset-bottom));
+  overflow: auto;
+  z-index: 0;
+}
+
+.english-hall::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(880px 460px at 50% 50%, rgba(217, 165, 128, 0.19), transparent 72%),
+    linear-gradient(
+      145deg,
+      #08060f 0%,
+      #130c22 18%,
+      #211630 36%,
+      #33223a 54%,
+      #492d43 72%,
+      #603d4b 88%,
+      #734a54 100%
+    );
+}
+
+.english-hall::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: url('/castle.png') no-repeat center center;
+  background-size: auto min(78vh, 720px);
+  filter: drop-shadow(0 10px 60px rgba(217, 165, 128, 0.22));
+  opacity: 0.42;
+}
+
+.english-hall-drill {
+  align-content: start;
+}
+
+.english-hall-drill::after {
+  opacity: 0.22;
+}
+
+/* ---- English home: elliptical solar system (reference layout) ---- */
+
+.english-inkhall {
+  overflow: hidden;
+}
+
+.english-inkhall::after {
+  opacity: 0.08;
+  background-size: auto min(82vh, 820px);
+}
+
+.ink-wash {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 55% 70% at 0% 48%, rgba(255, 180, 60, 0.2), transparent 55%),
+    radial-gradient(ellipse 50% 50% at 70% 50%, rgba(10, 8, 20, 0.35), transparent 70%);
+}
+
+.ink-stage.solar-stage {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.solar-system {
+  --sun: clamp(220px, 40vh, 360px);
+  --planet-base: clamp(36px, 5.6vh, 64px);
+  /* Innermost orbit clears the sun’s visible edge */
+  --orbit-min: calc(var(--sun) * 0.78);
+  --orbit-span: clamp(260px, 46vw, 580px);
+  --squash: 0.4;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.solar-plane {
+  position: absolute;
+  inset: 0;
+}
+
+.solar-ring-pair {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.solar-ring {
+  --rx: calc(var(--orbit-min) + var(--orbit-span) * var(--orbit-t));
+  --ry: calc(var(--rx) * var(--squash));
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: calc(var(--rx) * 2);
+  height: calc(var(--ry) * 2);
+  border-radius: 50%;
+  border: 1.25px solid rgba(230, 230, 240, 0.34);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  animation: solar-ring-fade 0.9s ease var(--delay, 0s) forwards;
+}
+
+/* Back half of orbit goes under the sun */
+.solar-ring-back {
+  z-index: 1;
+  clip-path: inset(0 0 50% 0);
+}
+
+/* Front half of orbit wraps over the sun — 3D pass-in-front */
+.solar-ring-front {
+  z-index: 5;
+  clip-path: inset(50% 0 0 0);
+  border-color: rgba(245, 245, 250, 0.4);
+}
+
+.solar-sun {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: var(--sun);
+  height: var(--sun);
+  transform: translate(-52%, -50%);
+  z-index: 3;
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+  transform-style: preserve-3d;
+}
+
+.solar-sun-glow {
+  position: absolute;
+  inset: -22%;
+  border-radius: 50%;
+  z-index: 0;
+  background: radial-gradient(circle, rgba(255, 190, 70, 0.55), transparent 68%);
+  animation: solar-sun-pulse 5s ease-in-out infinite;
+}
+
+.solar-sun-body {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  z-index: 1;
+  background:
+    radial-gradient(circle at 30% 28%, #fffce8 0%, #ffe89a 14%, transparent 32%),
+    radial-gradient(circle at 48% 48%, #f0a830 0%, #e07018 55%, #7a2808 100%);
+  box-shadow:
+    inset -36px -8px 42px rgba(60, 10, 0, 0.55),
+    inset 16px 14px 28px rgba(255, 250, 210, 0.55),
+    inset 0 0 40px rgba(255, 140, 40, 0.35),
+    0 0 70px rgba(255, 170, 40, 0.55),
+    0 0 140px rgba(220, 100, 20, 0.28),
+    0 18px 40px rgba(0, 0, 0, 0.35);
+  border: none;
+  animation: solar-sun-enter 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.solar-sun-limb {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 42% 40%,
+    transparent 42%,
+    rgba(120, 30, 0, 0.25) 68%,
+    rgba(40, 8, 0, 0.55) 100%
+  );
+  pointer-events: none;
+}
+
+.solar-sun-hotspot {
+  position: absolute;
+  width: 34%;
+  height: 28%;
+  left: 22%;
+  top: 20%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 240, 0.75), transparent 70%);
+  filter: blur(2px);
+  pointer-events: none;
+  animation: solar-sun-pulse 4s ease-in-out infinite;
+}
+
+.solar-sun-label {
+  position: absolute;
+  left: 54%;
+  right: 6%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+  z-index: 2;
+  font-family: var(--display);
+  font-size: clamp(22px, 3.6vh, 36px);
+  font-weight: 700;
+  color: #1a1208;
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-shadow: 0 1px 0 rgba(255, 240, 200, 0.45);
+  line-height: 1.05;
+}
+
+.solar-planet {
+  --rx: calc(var(--orbit-min) + var(--orbit-span) * var(--orbit-t));
+  --ry: calc(var(--rx) * var(--squash));
+  --px: calc(cos(var(--angle)) * var(--rx));
+  --py: calc(sin(var(--angle)) * var(--ry));
+  --p: calc(var(--planet-base) * var(--size, 1));
+  --accent: #888;
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: calc(var(--p) + 12px);
+  height: calc(var(--p) + 28px);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.2);
+  animation: solar-planet-align 1.05s cubic-bezier(0.22, 1, 0.36, 1) var(--delay, 0.3s) forwards;
+}
+
+.solar-planet-ball {
+  position: relative;
+  width: var(--p);
+  height: var(--p);
+  border-radius: 50%;
+  flex-shrink: 0;
+  overflow: visible;
+  isolation: isolate;
+  background: var(--accent);
+  box-shadow:
+    inset -14px -10px 22px rgba(0, 0, 0, 0.55),
+    inset 6px 4px 12px rgba(255, 220, 160, 0.12),
+    0 10px 22px rgba(0, 0, 0, 0.45);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+  animation: solar-planet-bob 5.2s ease-in-out infinite;
+  animation-delay: calc(1.5s + var(--i) * 0.1s);
+}
+
+.solar-planet-surface,
+.solar-planet-atmosphere,
+.solar-planet-shine,
+.solar-planet-shade {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  clip-path: circle(50% at 50% 50%);
+}
+
+.solar-planet-surface {
+  z-index: 1;
+}
+
+.solar-planet-atmosphere {
+  z-index: 2;
+}
+
+.solar-planet-shade {
+  z-index: 3;
+  /* Green light from the chamber door on the left */
+  background: linear-gradient(
+    90deg,
+    rgba(190, 255, 210, 0.16) 0%,
+    transparent 28%,
+    transparent 45%,
+    rgba(0, 0, 0, 0.35) 72%,
+    rgba(0, 0, 0, 0.72) 100%
+  );
+}
+
+.solar-planet-shine {
+  z-index: 4;
+  background: radial-gradient(circle at 22% 32%, rgba(255, 255, 255, 0.5), transparent 32%);
+}
+
+.solar-planet-rings {
+  position: absolute;
+  left: -62%;
+  right: -62%;
+  top: 38%;
+  height: 36%;
+  border-radius: 50%;
+  pointer-events: none;
+  border: 3px solid transparent;
+  border-top-color: rgba(160, 190, 160, 0.35);
+  border-bottom-color: rgba(220, 240, 220, 0.85);
+  box-shadow:
+    0 0 0 4px rgba(80, 120, 90, 0.28),
+    inset 0 0 0 2px rgba(210, 235, 210, 0.22);
+  transform: rotateZ(-20deg) scaleY(0.34);
+}
+
+.solar-planet-rings-back {
+  z-index: 0;
+  clip-path: inset(0 0 48% 0);
+  opacity: 0.85;
+}
+
+.solar-planet-rings-front {
+  z-index: 5;
+  clip-path: inset(48% 0 0 0);
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35));
+}
+
+/* Gems of the chamber — emerald, serpentine, bronze, and a basilisk eye. */
+.skin-earth .solar-planet-surface {
+  background:
+    radial-gradient(circle at 34% 38%, #3d9a62 0 11%, transparent 12%),
+    radial-gradient(circle at 56% 52%, #1d6a42 0 9%, transparent 10%),
+    radial-gradient(circle at 48% 26%, #67c48a 0 7%, transparent 8%),
+    radial-gradient(circle at 62% 34%, #0e4a34 0 100%);
+  background-color: #146b48;
+}
+
+.skin-mars .solar-planet-surface {
+  background:
+    radial-gradient(circle at 40% 34%, #6a5430 0 9%, transparent 10%),
+    radial-gradient(circle at 60% 58%, #3e3424 0 12%, transparent 13%),
+    linear-gradient(155deg, #c4a56a, #7a6240 50%, #3a3020);
+}
+
+.skin-neptune .solar-planet-surface {
+  background: repeating-linear-gradient(
+    180deg,
+    #1e5c44 0 9%,
+    #143c30 9% 18%,
+    #2a7a58 18% 27%,
+    #0e3026 27% 36%
+  );
+}
+
+.skin-terra .solar-planet-surface {
+  background:
+    radial-gradient(circle at 42% 36%, #5ed48a 0 12%, transparent 13%),
+    radial-gradient(circle at 58% 58%, #1f7a48 0 10%, transparent 11%),
+    radial-gradient(circle at 55% 30%, #0f5a40 0 100%);
+  background-color: #147a52;
+}
+
+.skin-uranus .solar-planet-surface {
+  background: linear-gradient(180deg, #d8f0e4, #8ecfb0 40%, #4ea882 70%, #2a7058);
+}
+
+.skin-jupiter .solar-planet-surface {
+  background: repeating-linear-gradient(
+    180deg,
+    #d8c49a 0 8%,
+    #6a8a58 8% 15%,
+    #efe2c4 15% 22%,
+    #3e5c40 22% 30%,
+    #b7a06a 30% 38%
+  );
+}
+
+.skin-jupiter .solar-planet-atmosphere {
+  background: radial-gradient(circle at 64% 48%, rgba(40, 90, 50, 0.55) 0 5%, transparent 7%);
+}
+
+.skin-saturn .solar-planet-surface {
+  background: repeating-linear-gradient(
+    180deg,
+    #e4ecd8 0 9%,
+    #8aa888 9% 18%,
+    #c5d4bc 18% 27%,
+    #5e7a62 27% 36%
+  );
+}
+
+.skin-venus .solar-planet-surface {
+  background:
+    radial-gradient(circle at 40% 34%, rgba(255, 248, 220, 0.4), transparent 40%),
+    linear-gradient(145deg, #e6d7b4, #a89068 42%, #6a5840);
+}
+
+.skin-mercury .solar-planet-surface {
+  background:
+    radial-gradient(circle at 32% 30%, #4a5850 0 5%, transparent 6%),
+    radial-gradient(circle at 58% 42%, #2e3a34 0 7%, transparent 8%),
+    radial-gradient(circle at 68% 58%, #24302a 0 5%, transparent 6%),
+    linear-gradient(150deg, #8a9a90, #5a6a62 42%, #2a3832);
+}
+
+.skin-io .solar-planet-surface {
+  background:
+    radial-gradient(circle at 50% 48%, #1a140c 0 16%, #e8c56a 18% 34%, #2f6a40 36% 72%, #102818 100%);
+}
+
+.solar-planet-name {
+  font-family: var(--display);
+  font-size: clamp(10px, 1.25vh, 12px);
+  line-height: 1.15;
+  text-align: center;
+  color: #f3ecdc;
+  max-width: 110px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+}
+
+.solar-planet:hover .solar-planet-name,
+.solar-planet.focus .solar-planet-name,
+.solar-planet:focus-visible .solar-planet-name {
+  opacity: 1;
+}
+
+.solar-planet:hover .solar-planet-ball,
+.solar-planet.focus .solar-planet-ball,
+.solar-planet:focus-visible .solar-planet-ball {
+  outline: none;
+  transform: scale(1.1);
+  box-shadow:
+    inset -14px -10px 22px rgba(0, 0, 0, 0.55),
+    0 0 28px color-mix(in srgb, var(--accent) 45%, transparent),
+    0 14px 28px rgba(0, 0, 0, 0.5);
+}
+
+.ink-blurb-kicker {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-variant: small-caps;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+}
+
+.ink-blurb-title {
+  margin: 0 0 8px;
+  font-family: var(--display);
+  font-size: 26px;
+  color: var(--text-h);
+  line-height: 1.15;
+}
+
+.ink-blurb-text {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.ink-enter {
+  width: 100%;
+  justify-content: center;
+}
+
+@keyframes solar-sun-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes solar-sun-pulse {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes solar-ring-fade {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes solar-planet-align {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.15);
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translate(calc(-50% + var(--px)), calc(-50% + var(--py))) scale(1);
+  }
+}
+
+@keyframes solar-planet-bob {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -3px;
+  }
+}
+
+@media (max-width: 780px) {
+  .solar-system {
+    --sun: clamp(160px, 32vh, 220px);
+    --planet-base: clamp(30px, 5vh, 48px);
+    --orbit-min: calc(var(--sun) * 0.82);
+    --orbit-span: clamp(140px, 42vw, 260px);
+    --squash: 0.46;
+  }
+
+  .solar-sun-label {
+    font-size: clamp(18px, 3.2vh, 26px);
+    left: 52%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .solar-sun-glow,
+  .solar-sun-body,
+  .solar-sun-hotspot,
+  .solar-ring,
+  .solar-planet,
+  .solar-planet-ball {
+    animation: none !important;
+  }
+
+  .solar-planet {
+    opacity: 1;
+    transform: translate(calc(-50% + var(--px)), calc(-50% + var(--py))) scale(1);
+  }
+
+  .solar-ring {
+    opacity: 1;
+  }
+
+  .solar-sun-body {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ============ Chamber of Secrets ============
+   The English hall stands inside the chamber: Salazar at the far wall,
+   the serpent door in place of the sun, cave stone framing the mouth. */
+
+.english-hall.chamber-hall::before {
+  background:
+    radial-gradient(980px 560px at 16% 52%, rgba(70, 170, 100, 0.18), transparent 68%),
+    radial-gradient(720px 480px at 70% 38%, rgba(8, 24, 16, 0.45), transparent 72%),
+    linear-gradient(180deg, #040706 0%, #0a1611 46%, #06110c 100%);
+}
+
+.english-hall.chamber-hall::after {
+  content: none;
+}
+
+.chamber-hall .picker-sky {
+  z-index: 1;
+}
+
+.chamber-hall .ink-stage {
+  z-index: 2;
+}
+
+.chamber-hall .topbar {
+  z-index: 4;
+}
+
+.chamber-hall .mote::before {
+  background: radial-gradient(circle, #f4fff8 0%, #7dffb0 46%, transparent 72%);
+  box-shadow: 0 0 6px rgba(80, 220, 140, 0.8);
+}
+
+.chamber-scene {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.chamber-salazar {
+  position: absolute;
+  left: 50%;
+  top: 16%;
+  width: min(38vw, 460px);
+  height: auto;
+  transform: translateX(-50%);
+  opacity: 0.9;
+  filter: saturate(0.8) brightness(0.9);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 46%, #000 42%, transparent 76%);
+  mask-image: radial-gradient(ellipse at 50% 46%, #000 42%, transparent 76%);
+}
+
+.chamber-cave {
+  position: absolute;
+  top: 0;
+  width: min(48vw, 680px);
+  height: auto;
+  user-select: none;
+}
+
+.chamber-cave-left {
+  left: 0;
+}
+
+.chamber-cave-right {
+  right: 0;
+}
+
+.chamber-snake {
+  position: absolute;
+  z-index: 2;
+  left: 15%;
+  bottom: 3%;
+  width: min(14vw, 170px);
+  height: auto;
+  filter: brightness(1.55) contrast(1.15)
+    drop-shadow(0 0 10px rgba(190, 230, 200, 0.35))
+    drop-shadow(0 12px 14px rgba(0, 0, 0, 0.65));
+  animation: chamber-drift 7.5s ease-in-out infinite;
+}
+
+.chamber-basilisk {
+  position: absolute;
+  z-index: 2;
+  right: -2%;
+  bottom: -6%;
+  width: min(24vw, 260px);
+  height: auto;
+  filter: drop-shadow(0 0 32px rgba(40, 170, 80, 0.45));
+}
+
+.chamber-inscription {
+  position: absolute;
+  z-index: 2;
+  left: 42%;
+  bottom: 6.5%;
+  transform: translateX(-50%);
+  margin: 0;
+  text-align: center;
+  font-family: var(--label);
+  font-variant: small-caps;
+  letter-spacing: 0.28em;
+  font-size: clamp(12px, 1.5vh, 15px);
+  color: rgba(214, 232, 214, 0.78);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.85);
+}
+
+.chamber-inscription span {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 0.68em;
+  letter-spacing: 0.36em;
+  color: rgba(180, 210, 180, 0.62);
+}
+
+.chamber-mist {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 32%;
+  background: radial-gradient(ellipse at 50% 100%, rgba(170, 230, 190, 0.14), transparent 68%);
+  animation: chamber-mist 9s ease-in-out infinite;
+}
+
+.chamber-water {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 16%;
+  background: linear-gradient(
+    to top,
+    rgba(4, 22, 16, 0.92) 0%,
+    rgba(8, 36, 24, 0.45) 52%,
+    transparent 100%
+  );
+}
+
+.chamber-water::after {
+  content: '';
+  position: absolute;
+  left: 12%;
+  right: 18%;
+  top: 22%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(170, 230, 190, 0.4), transparent);
+}
+
+.chamber-scene.is-quiet .chamber-salazar {
+  opacity: 0.22;
+  width: min(42vw, 520px);
+  left: 50%;
+  right: auto;
+  top: 16%;
+  transform: translateX(-50%);
+}
+
+.chamber-scene.is-quiet .chamber-cave {
+  opacity: 0.4;
+}
+
+.chamber-scene.is-quiet .chamber-mist,
+.chamber-scene.is-quiet .chamber-water {
+  opacity: 0.4;
+}
+
+.chamber-hall .solar-sun-body {
+  background: url('/chamber/door.png') center / 122% no-repeat #1c1610;
+  box-shadow:
+    inset 0 0 0 2px rgba(70, 54, 30, 0.4),
+    0 0 54px rgba(90, 200, 120, 0.32),
+    0 0 130px rgba(16, 70, 36, 0.42),
+    0 18px 36px rgba(0, 0, 0, 0.5);
+}
+
+.chamber-hall .solar-sun-limb,
+.chamber-hall .solar-sun-hotspot {
+  opacity: 0;
+}
+
+.chamber-hall .solar-sun-glow {
+  background: radial-gradient(circle, rgba(90, 210, 130, 0.48), transparent 68%);
+}
+
+.chamber-hall .solar-ring {
+  border-color: rgba(190, 220, 190, 0.28);
+}
+
+.chamber-hall .solar-ring-front {
+  border-color: rgba(214, 236, 214, 0.4);
+}
+
+.chamber-hall .solar-planet {
+  height: calc(var(--p) + 42px);
+}
+
+.chamber-hall .solar-planet-name {
+  color: #f4fff6;
+  opacity: 0.92;
+  max-width: 128px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(4, 10, 8, 0.55);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95);
+}
+
+.chamber-hall .topbar-nav {
+  border-color: #07140e;
+  background: rgba(6, 18, 14, 0.8);
+  box-shadow:
+    inset 0 3px 0 rgba(180, 230, 190, 0.1),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.35),
+    0 5px 0 #040a08,
+    0 9px 22px rgba(0, 0, 0, 0.5);
+}
+
+.chamber-hall .topbar-link {
+  color: #c5d8cc;
+}
+
+.chamber-hall .topbar-link:hover {
+  color: #f3fff6;
+  background: rgba(140, 200, 160, 0.12);
+}
+
+.chamber-hall .topbar-link.on {
+  color: #102016;
+  background: linear-gradient(180deg, #e7f6ea 0%, #8fbf98 55%, #4d8a62 100%);
+  border-color: #07140e;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.16),
+    0 3px 0 #040a08;
+}
+
+.chamber-hall .topbar-link.on:hover {
+  background: linear-gradient(180deg, #f3fff6 0%, #9dccaa 55%, #5a9870 100%);
+}
+
+.chamber-hall .topbar-cta,
+.chamber-hall .kitty-fab {
+  border-color: #07140e;
+  background: linear-gradient(180deg, #e7f6ea 0%, #8fbf98 55%, #3f7a56 100%);
+  color: #102016;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.16),
+    0 5px 0 #040a08,
+    0 9px 20px rgba(0, 0, 0, 0.45);
+}
+
+.chamber-hall .topbar-cta:hover,
+.chamber-hall .kitty-fab:hover {
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.55),
+    0 8px 0 #040a08,
+    0 13px 26px rgba(0, 0, 0, 0.5),
+    0 0 28px rgba(80, 200, 130, 0.35);
+}
+
+.chamber-hall .topbar-wordmark {
+  background: linear-gradient(180deg, #f4fff6 0%, #c6e6d0 36%, #6eae84 62%, #e7f6ea 80%, #4e8664 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.65)) drop-shadow(0 0 18px rgba(80, 200, 130, 0.28));
+}
+
+.chamber-hall .kitty-panel {
+  border-color: rgba(120, 190, 140, 0.4);
+  background: linear-gradient(180deg, #12201a, #070e0c);
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(80, 180, 110, 0.12);
+}
+
+.chamber-hall .kitty-head {
+  border-bottom-color: rgba(80, 140, 100, 0.35);
+  background: color-mix(in srgb, #3d8f5c 16%, #0c1612);
+}
+
+.chamber-hall .kitty-fab.on {
+  background: linear-gradient(180deg, #1c3026, #0e1a14);
+  color: #e7f6ea;
+}
+
+.chamber-hall .btn.primary {
+  background: linear-gradient(180deg, #3d8f5c, #1a4a32);
+  border-color: #0d2818;
+  color: #f3fff6;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 3px 0 #0a1c12;
+}
+
+.chamber-hall .btn.primary:hover {
+  background: linear-gradient(180deg, #4aa36c, #21603f);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 4px 0 #0a1c12;
+}
+
+@keyframes chamber-drift {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -8px;
+  }
+}
+
+@keyframes chamber-mist {
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 780px) {
+  .chamber-salazar {
+    left: 50%;
+    right: auto;
+    width: min(78vw, 420px);
+    top: 12%;
+    transform: translateX(-50%);
+    opacity: 0.55;
+  }
+
+  .chamber-cave {
+    width: 62vw;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chamber-snake,
+  .chamber-mist {
+    animation: none;
+  }
+}
+
+/* School crests in the chamber: shield, charge, and a name ribbon. */
+
+.hall {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.corridor {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: min(980px, 100%);
+  height: 90%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: stretch;
+}
+
+.corridor-path {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px 4px;
+}
+
+.house-badge-row {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 18px;
+  width: 100%;
+}
+
+.house-badge {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  width: 132px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.house-crest {
+  width: 100%;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 10px 8px rgba(0, 0, 0, 0.55));
+  transition: transform 0.16s ease, filter 0.16s ease;
+}
+
+.house-crest-name {
+  font-family: var(--label);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.house-badge:hover .house-crest,
+.house-badge:focus-visible .house-crest {
+  transform: translateY(-6px);
+  filter: drop-shadow(0 16px 12px rgba(0, 0, 0, 0.6));
+}
+
+.house-badge:focus-visible {
+  outline: 2px solid var(--lantern);
+  outline-offset: 4px;
+}
+
+@media (max-height: 760px) {
+  .house-badge {
+    width: 108px;
+  }
+
+  .house-badge-row {
+    gap: 12px;
+  }
+}
+
+.chamber-hall .kitty-fab.kitty-seal {
+  width: 92px;
+  height: 92px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  overflow: hidden;
+  filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.55));
+}
+
+.chamber-hall .kitty-fab.kitty-seal img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.chamber-hall .kitty-fab.kitty-seal:hover {
+  transform: translateY(-3px);
+  box-shadow: none;
+  filter: drop-shadow(0 0 22px rgba(110, 220, 150, 0.6));
+}
+
+.chamber-hall .kitty-fab.kitty-seal.on {
+  width: 48px;
+  height: 48px;
+  border: 2px solid rgba(170, 210, 180, 0.45);
+  border-radius: 50%;
+  background: #102018;
+  color: #e7f6ea;
+  filter: none;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+}
+
+@media (max-width: 780px) {
+  .corridor {
+    width: 100%;
+    height: 86%;
+  }
+
+  .house-badge-row {
+    gap: 6px;
+  }
+
+  .house-badge {
+    width: 88px;
+  }
+
+  .chamber-hall .kitty-fab.kitty-seal {
+    width: 76px;
+    height: 76px;
+  }
+}
+
+.english-mark {
+  font-size: 56px;
+  line-height: 1;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.45));
+  z-index: 1;
+}
+
+.english-chip {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 100%;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.35;
+  text-transform: none;
+  letter-spacing: 0;
+  font-variant: normal;
+  white-space: normal;
+}
+
+/* ---- All-topics browser ---- */
+
+.english-hall-topics {
+  overflow: auto;
+  align-content: start;
+}
+
+.topics-browser {
+  position: relative;
+  z-index: 1;
+  width: min(960px, 100%);
+  margin: 0 auto;
+  padding: 8px 16px 100px;
+}
+
+.topics-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.topics-search {
+  flex: 1 1 220px;
+  font: inherit;
+  padding: 11px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(18, 14, 28, 0.82);
+  color: var(--text-h);
+  backdrop-filter: blur(8px);
+}
+
+.topics-search:focus {
+  outline: none;
+  border-color: var(--lantern-line);
+  box-shadow: 0 0 0 3px var(--lantern-soft);
+}
+
+.topics-total {
+  font-size: 12px;
+  font-variant: small-caps;
+  letter-spacing: 0.1em;
+  color: var(--dim);
+}
+
+.topics-layout {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.topics-areas {
+  position: sticky;
+  top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(12, 10, 20, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.topics-area-btn {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.topics-area-btn:hover {
+  background: var(--stone-800);
+  color: var(--text-h);
+}
+
+.topics-area-btn.on {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  background: color-mix(in srgb, var(--accent) 16%, var(--stone-850));
+  color: var(--text-h);
+}
+
+.topics-area-name {
+  font-family: var(--display);
+  font-size: 15px;
+}
+
+.topics-area-n {
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.topics-main {
+  min-width: 0;
+}
+
+.topics-section {
+  margin-bottom: 22px;
+  padding: 16px 18px 8px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
+  background: rgba(14, 12, 22, 0.78);
+  backdrop-filter: blur(10px);
+}
+
+.topics-section-head h2 {
+  margin: 0 0 4px;
+  font-family: var(--display);
+  font-size: 26px;
+  color: var(--text-h);
+}
+
+.topics-section-head p {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.topics-branch {
+  margin-bottom: 16px;
+}
+
+.topics-branch-name {
+  margin: 0 0 8px;
+  font-family: var(--label);
+  font-size: 12px;
+  font-variant: small-caps;
+  letter-spacing: 0.14em;
+  color: var(--lantern);
+}
+
+.topics-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.topics-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 2px 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--stone-850);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.14s ease,
+    transform 0.14s ease;
+}
+
+.topics-item:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+  transform: translateX(3px);
+}
+
+.topics-item-name {
+  font-family: var(--display);
+  font-size: 17px;
+  color: var(--text-h);
+}
+
+.topics-item-goal {
+  grid-column: 1;
+  font-size: 12.5px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.topics-item-go {
+  grid-row: 1 / span 2;
+  align-self: center;
+  font-size: 11px;
+  font-variant: small-caps;
+  letter-spacing: 0.08em;
+  color: var(--lantern);
+  white-space: nowrap;
+}
+
+/* ---- Topic learn + test room ---- */
+
+.topic-room {
+  position: relative;
+  z-index: 1;
+  width: min(680px, 100%);
+  margin: 0 auto;
+  padding: 8px 16px 100px;
+}
+
+.topic-room-head {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.topic-room-path {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-variant: small-caps;
+  letter-spacing: 0.12em;
+  color: var(--lantern);
+}
+
+.topic-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.topic-tab {
+  font: inherit;
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--stone-850);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.topic-tab.on {
+  border-color: var(--lantern-line);
+  background: var(--lantern-soft);
+  color: var(--text-h);
+}
+
+.topic-panel {
+  padding: 18px 20px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(14, 12, 22, 0.88);
+}
+
+.topic-panel.parchment-panel {
+  background: var(--parchment);
+  border-color: var(--parchment-line);
+  color: var(--parchment-ink);
+}
+
+.topic-panel.parchment-panel .lesson {
+  color: var(--parchment-ink);
+}
+
+.topic-learn-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.eng-section {
+  position: relative;
+  z-index: 1;
+}
+
+.dict-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.dict-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.dict-card {
+  padding: 18px;
+  border-radius: 14px;
+  border: 1px solid var(--parchment-line);
+  background: var(--parchment);
+  color: var(--parchment-ink);
+}
+
+.dict-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.dict-head h3 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 28px;
+}
+
+.dict-phonetic {
+  color: #6a5a40;
+  font-style: italic;
+}
+
+.dict-meaning h4 {
+  margin: 14px 0 6px;
+  font-variant: small-caps;
+  letter-spacing: 0.08em;
+  color: #7a2530;
+}
+
+.dict-meaning ol {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.dict-ex {
+  font-style: italic;
+  opacity: 0.85;
+}
+
+.dict-syn {
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.jumble-bank {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.jumble-chip {
+  font: inherit;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--stone-800);
+  color: var(--text-h);
+  cursor: pointer;
+}
+
+.jumble-chip.used {
+  opacity: 0.35;
+}
+
+.jumble-built {
+  min-height: 2.2em;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px dashed var(--lantern-line);
+  background: var(--lantern-soft);
+  color: var(--text-h);
+  margin-bottom: 12px;
+}
+
+.sent-sample {
+  margin: 12px 0;
+  color: var(--text);
+  font-size: 13.5px;
+}
+
+.sent-sample summary {
+  cursor: pointer;
+  color: var(--lantern);
+}
+
+.vocab-card {
+  text-align: center;
+  padding: 28px 20px;
+  margin: 12px 0 18px;
+  border-radius: 16px;
+  border: 1px solid var(--lantern-line);
+  background: rgba(18, 14, 28, 0.85);
+}
+
+.vocab-word {
+  margin: 0 0 8px;
+  font-family: var(--display);
+  font-size: clamp(28px, 6vw, 42px);
+  color: var(--text-h);
+  letter-spacing: 0.04em;
+}
+
+.story-text {
+  white-space: pre-wrap;
+  font-family: var(--label);
+  font-size: 15px;
+  line-height: 1.7;
+  padding: 18px;
+  border-radius: 12px;
+  border: 1px solid var(--parchment-line);
+  background: var(--parchment);
+  color: var(--parchment-ink);
+  max-height: min(70vh, 640px);
+  overflow: auto;
+}
+
+.eng-stories-shell .spell-shelf-wrap {
+  padding-bottom: 120px;
+}
+
+@media (max-width: 720px) {
+  .topics-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .topics-areas {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .topics-area-btn {
+    flex: 1 1 auto;
+  }
+
+  .topics-item {
+    grid-template-columns: 1fr;
+  }
+
+  .topics-item-go {
+    grid-row: auto;
+  }
+}
+
+/* BookShelf component — Story Book section */
+.spell-shelf-wrap {
+  position: relative;
+  z-index: 1;
+  width: min(980px, 100%);
+  margin: auto 0;
+  padding: 8px 8px 110px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  overflow: visible;
+}
+
+.spell-shelf-hint {
+  margin: 0;
+  font-family: var(--label);
+  font-size: 13px;
+  font-variant: small-caps;
+  letter-spacing: 0.16em;
+  color: var(--lantern);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.55);
+}
+
+.spell-shelf {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 7px;
+  width: 100%;
+  min-height: 200px;
+  padding: 8px 16px 36px;
+  /* Tip sits under the ledge — avoid clipping hover lift into an x-scroll box */
+  overflow-x: auto;
+  overflow-y: visible;
+  scrollbar-width: thin;
+}
+
+.spell-shelf-ledge {
+  position: absolute;
+  left: 2%;
+  right: 2%;
+  bottom: 8px;
+  height: 16px;
+  border-radius: 4px 4px 8px 8px;
+  background:
+    linear-gradient(180deg, #6b4a2e 0%, #3d2818 55%, #2a1a10 100%);
+  box-shadow:
+    0 6px 0 #1a1008,
+    0 14px 28px rgba(0, 0, 0, 0.45),
+    inset 0 2px 0 rgba(232, 180, 74, 0.25);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.spell-tome {
+  --accent: var(--lantern);
+  --tilt: 0deg;
+  position: relative;
+  flex: 0 0 auto;
+  width: clamp(46px, 6.5vw, 64px);
+  height: clamp(150px, 26vh, 210px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 6px 12px;
+  border: 0;
+  border-radius: 5px 8px 3px 3px;
+  cursor: pointer;
+  font: inherit;
+  color: #f3ecdc;
+  transform: rotate(var(--tilt)) translateY(0);
+  transform-origin: 50% 100%;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.35) 0%, transparent 18%, transparent 82%, rgba(0, 0, 0, 0.28) 100%),
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 55%, #2a1a12), color-mix(in srgb, var(--accent) 28%, #120c08));
+  box-shadow:
+    inset 3px 0 0 rgba(255, 255, 255, 0.12),
+    inset -4px 0 0 rgba(0, 0, 0, 0.35),
+    4px 0 0 rgba(0, 0, 0, 0.25),
+    0 8px 18px rgba(0, 0, 0, 0.4);
+  transition:
+    transform 0.2s cubic-bezier(0.34, 1.4, 0.64, 1),
+    box-shadow 0.2s ease;
+  z-index: 1;
+}
+
+.spell-tome.tome-0 {
+  height: clamp(158px, 28vh, 220px);
+}
+.spell-tome.tome-1 {
+  height: clamp(142px, 24vh, 198px);
+}
+.spell-tome.tome-2 {
+  height: clamp(168px, 30vh, 230px);
+}
+.spell-tome.tome-3 {
+  height: clamp(148px, 25vh, 205px);
+}
+.spell-tome.tome-4 {
+  height: clamp(155px, 27vh, 215px);
+}
+
+.spell-tome:hover,
+.spell-tome:focus-visible {
+  outline: none;
+  z-index: 4;
+  transform: rotate(0deg) translateY(-14px) scale(1.05);
+  box-shadow:
+    inset 3px 0 0 rgba(255, 255, 255, 0.18),
+    inset -4px 0 0 rgba(0, 0, 0, 0.3),
+    0 0 0 2px var(--lantern-line),
+    0 18px 32px rgba(0, 0, 0, 0.55);
+}
+
+.tome-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 28%;
+  height: 12px;
+  background: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.35),
+    color-mix(in srgb, var(--accent) 70%, #e8b44a),
+    rgba(0, 0, 0, 0.35)
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  pointer-events: none;
+}
+
+.tome-icon {
+  font-size: 18px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.45));
+}
+
+.tome-title {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--display);
+  font-size: clamp(12px, 1.8vw, 15px);
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+  max-height: 55%;
+  overflow: hidden;
+}
+
+.tome-count {
+  font-size: 10px;
+  font-variant: small-caps;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+}
+
+/* Tip under the shelf so nothing above gets covered on hover */
+.tome-tip {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 22px);
+  transform: translateX(-50%) translateY(-4px);
+  width: max(150px, 12vw);
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--lantern-line);
+  background: rgba(18, 14, 28, 0.96);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  writing-mode: horizontal-tb;
+  z-index: 6;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+.spell-tome:hover .tome-tip,
+.spell-tome:focus-visible .tome-tip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ---- Kitty floating chat ---- */
+
+.kitty {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 80;
+  display: grid;
+  justify-items: end;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.kitty > * {
+  pointer-events: auto;
+}
+
+.kitty-fab {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 999px;
+  border: 3px solid #150f22;
+  background: linear-gradient(180deg, #f5d894 0%, #e0ae42 58%, #c8912c 100%);
+  color: #241705;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.18),
+    0 5px 0 #0d0918,
+    0 9px 20px rgba(0, 0, 0, 0.45);
+  transition:
+    transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.16s ease;
+}
+
+.kitty-fab:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    inset 0 3px 0 rgba(255, 255, 255, 0.55),
+    0 8px 0 #0d0918,
+    0 13px 26px rgba(0, 0, 0, 0.5),
+    0 0 30px rgba(232, 180, 74, 0.4);
+}
+
+.kitty-fab.on {
+  background: linear-gradient(180deg, #3a3252, #221e33);
+  color: var(--text-h);
+  font-size: 18px;
+}
+
+.kitty-panel {
+  width: min(380px, calc(100vw - 28px));
+  max-height: min(560px, calc(100svh - 100px));
+  display: flex;
+  flex-direction: column;
+  border-radius: 18px;
+  border: 1px solid var(--lantern-line);
+  background: linear-gradient(180deg, #1a1628, #100e18);
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(232, 180, 74, 0.12);
+  overflow: hidden;
+  animation: kitty-rise 0.22s ease;
+}
+
+@keyframes kitty-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.kitty-head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--lantern) 10%, var(--stone-850));
+}
+
+.kitty-face {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.kitty-titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.kitty-titles strong {
+  font-family: var(--display);
+  font-size: 18px;
+  color: var(--text-h);
+}
+
+.kitty-titles span {
+  font-size: 11px;
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kitty-close {
+  border: 0;
+  background: transparent;
+  color: var(--dim);
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.kitty-close:hover {
+  color: var(--text-h);
+  background: var(--stone-800);
+}
+
+.kitty-note {
+  margin: 0;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.kitty-wake {
+  padding: 8px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kitty-models {
+  margin: 0;
+}
+
+.kitty-chat {
+  flex: 1;
+  min-height: 180px;
+  max-height: 280px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  scrollbar-width: thin;
+}
+
+.kitty-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 14px 8px;
+}
+
+.kitty-chips .btn {
+  font-size: 11px;
+  padding: 4px 10px;
+}
+
+.kitty-form {
+  display: flex;
+  gap: 6px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.kitty-form .tutor-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  padding: 9px 11px;
+}
+
+.kitty-form .btn.primary {
+  min-width: 42px;
+  padding-inline: 12px;
+}
+
+.kitty-error {
+  margin: 0;
+  padding: 0 14px 12px;
+  font-size: 12px;
+}
+
+@media (max-width: 560px) {
+  .spell-shelf {
+    justify-content: flex-start;
+    padding-inline: 12px;
+  }
+
+  .spell-tome {
+    width: 54px;
+  }
+
+  .tome-tip {
+    width: 140px;
+    font-size: 11.5px;
+  }
+
+  .kitty-panel {
+    width: calc(100vw - 20px);
+    max-height: calc(100svh - 90px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kitty-panel {
+    animation: none;
+  }
+
+  .spell-tome,
+  .spell-tome:hover,
+  .spell-tome:focus-visible {
+    transition: none;
+    transform: none;
+  }
+}
+
+
+.sidehall {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  overflow: auto;
+  padding-bottom: 40px;
+  animation: arrive 0.4s ease;
+  background:
+    radial-gradient(880px 460px at 50% 18%, rgba(217, 165, 128, 0.12), transparent 70%),
+    linear-gradient(160deg, #08060f 0%, #130c22 35%, #211630 70%, #2a1a2e 100%);
+}
+
+.sidehall-drill {
+  align-content: start;
+}
+
+.sidehall-head {
+  text-align: center;
+  padding: 8px 20px 28px;
+}
+
+.sidehall-section {
+  max-width: 960px;
+  margin: 0 auto 36px;
+  padding: 0 20px;
+}
+
+.sidehall-section-title {
+  font-family: var(--label);
+  font-size: 13px;
+  font-variant: small-caps;
+  letter-spacing: 0.14em;
+  color: var(--lantern);
+  margin: 0 0 14px;
+  text-align: center;
+}
+
+.sidehall-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.sidehall-grid.pieces {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.sidehall-grid.modes {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.sidehall-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 18px 18px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(165deg, color-mix(in srgb, var(--accent, var(--lantern)) 12%, var(--stone-800)), var(--stone-850));
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.sidehall-card:hover {
+  border-color: color-mix(in srgb, var(--accent, var(--lantern)) 55%, var(--line));
+  transform: translateY(-3px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+}
+
+.sidehall-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.sidehall-name {
+  font-family: var(--display);
+  font-size: 22px;
+  color: var(--text-h);
+}
+
+.sidehall-blurb {
+  font-size: 13.5px;
+  color: var(--text);
+  line-height: 1.45;
+}
+
+.sidehall-meta {
+  margin-top: 4px;
+  font-size: 11px;
+  font-variant: small-caps;
+  letter-spacing: 0.12em;
+  color: var(--dim);
+}
+
+.piece-card {
+  align-items: center;
+  text-align: center;
+}
+
+.piece-glyphs {
+  display: flex;
+  gap: 10px;
+  font-size: 34px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
+}
+
+.drill {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 12px 20px 40px;
+  animation: arrive 0.35s ease;
+}
+
+.drill-progress {
+  font-variant: small-caps;
+  letter-spacing: 0.12em;
+  font-size: 12px;
+  color: var(--lantern);
+  margin: 10px 0 8px;
+}
+
+.drill-title {
+  font-family: var(--display);
+  font-size: 28px;
+  color: var(--text-h);
+  margin: 0 0 12px;
+}
+
+.drill-sentence,
+.drill-story {
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--parchment-line);
+  background: var(--parchment);
+  color: var(--parchment-ink);
+  margin: 0 0 16px;
+  line-height: 1.55;
+}
+
+.drill-scramble {
+  font-family: var(--display);
+  font-size: 26px;
+  letter-spacing: 0.08em;
+  color: var(--lantern);
+  margin: 8px 0 6px;
+}
+
+.drill-options {
+  display: grid;
+  gap: 10px;
+}
+
+.drill-opt {
+  font: inherit;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--stone-800);
+  color: var(--text-h);
+  cursor: pointer;
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease;
+}
+
+.drill-opt:hover:not(:disabled) {
+  border-color: var(--lantern-line);
+}
+
+.drill-opt.right {
+  border-color: var(--good);
+  background: var(--good-soft);
+}
+
+.drill-opt.wrong {
+  border-color: var(--bad);
+  background: var(--bad-soft);
+}
+
+.drill-feedback {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.drill-spell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.drill-input {
+  flex: 1 1 200px;
+  font: inherit;
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--stone-900);
+  color: var(--text-h);
+}
+
+.drill-input:focus {
+  outline: none;
+  border-color: var(--lantern-line);
+  box-shadow: 0 0 0 3px var(--lantern-soft);
+}
+
+.drill-ok {
+  color: var(--good);
+  margin-top: 12px;
+}
+
+.drill-bad {
+  color: var(--bad);
+  margin-top: 12px;
+}
+
+.drill-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.drill-result {
+  text-align: center;
+  padding-top: 40px;
+}
+
+.drill-score {
+  font-family: var(--display);
+  font-size: 40px;
+  color: var(--lantern);
+  margin: 8px 0 22px;
+}
+
+.chess-status {
+  text-align: center;
+  color: var(--text);
+  margin: 0 0 14px;
+  font-style: italic;
+}
+
+.cboard {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  width: min(100%, 420px);
+  margin: 0 auto;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid #3a2a18;
+  box-shadow:
+    0 0 0 4px rgba(232, 180, 74, 0.18),
+    0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+.csq {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  position: relative;
+}
+
+.csq.light {
+  background: #e8d5a8;
+}
+
+.csq.dark {
+  background: #6b4a2e;
+}
+
+.csq.from {
+  box-shadow: inset 0 0 0 3px var(--lantern);
+}
+
+.csq.target::after {
+  content: '';
+  position: absolute;
+  width: 28%;
+  height: 28%;
+  border-radius: 50%;
+  background: rgba(232, 180, 74, 0.72);
+  pointer-events: none;
+}
+
+.csq.target:has(.cglyph:not(:empty))::after {
+  width: auto;
+  height: auto;
+  inset: 4px;
+  border-radius: 4px;
+  background: transparent;
+  border: 3px solid rgba(232, 180, 74, 0.85);
+}
+
+.cglyph {
+  font-size: clamp(22px, 5.5vw, 36px);
+  line-height: 1;
+  color: #1a1208;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.csq.dark .cglyph {
+  color: #0f0a06;
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.15));
+}
+
+@media (max-width: 640px) {
+  .sidehall-name {
+    font-size: 20px;
+  }
+
+  .drill-title {
+    font-size: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidehall,
+  .drill {
+    animation: none;
+  }
+}
+
+/* ---- Speak & Correct coach ---- */
+
+.coach-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.coach-input {
+  width: 100%;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--parchment);
+  color: var(--parchment-ink);
+  resize: vertical;
+  min-height: 88px;
+}
+
+.coach-input::placeholder {
+  color: #8a7d62;
+  font-style: italic;
+}
+
+.coach-input:focus {
+  outline: none;
+  border-color: var(--lantern-line);
+  box-shadow: 0 0 0 3px var(--lantern-soft);
+}
+
+.coach-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.coach-mic.on {
+  border-color: var(--bad);
+  background: var(--bad-soft);
+  color: var(--text-h);
+  animation: mic-pulse 1.2s ease infinite;
+}
+
+@keyframes mic-pulse {
+  50% {
+    box-shadow: 0 0 0 6px rgba(214, 69, 80, 0.18);
+  }
+}
+
+.coach-reply {
+  margin-top: 22px;
+}
+
+.coach-reply-title {
+  font-family: var(--label);
+  font-size: 12px;
+  font-variant: small-caps;
+  letter-spacing: 0.14em;
+  color: var(--lantern);
+  margin: 0 0 8px;
+}
+
+.coach-reply .tutor-answer {
+  margin-bottom: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coach-mic.on {
+    animation: none;
+  }
+}
+
+/* ---- AI English Guide ---- */
+
+.guide {
+  max-width: 720px;
+}
+
+.guide-focus {
+  text-align: center;
+  font-size: 13px;
+  color: var(--lantern);
+  margin: 0 0 14px;
+}
+
+.guide-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 1.15em;
+  height: 1.15em;
+  vertical-align: -0.12em;
+  font-size: 0.85em;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--lantern) 22%, var(--stone-800));
+  box-shadow: 0 0 0 2px var(--lantern-line);
+}
+
+.guide-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--stone-850), var(--stone-900));
+  scrollbar-width: thin;
+}
+
+.guide-bubble {
+  max-width: 88%;
+  padding: 10px 13px;
+  border-radius: 12px;
+  text-align: left;
+}
+
+.guide-bubble p {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  line-height: 1.5;
+  font-size: 14.5px;
+}
+
+.guide-who {
+  font-size: 10px;
+  font-variant: small-caps;
+  letter-spacing: 0.12em;
+  color: var(--dim);
+}
+
+.guide-bubble.assistant {
+  align-self: flex-start;
+  background: var(--stone-800);
+  border: 1px solid var(--line);
+  color: var(--text-h);
+}
+
+.guide-bubble.user {
+  align-self: flex-end;
+  background: color-mix(in srgb, var(--lantern) 18%, var(--stone-800));
+  border: 1px solid var(--lantern-line);
+  color: var(--text-h);
+}
+
+.guide-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.guide-form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.guide-form .tutor-input {
+  flex: 1 1 200px;
+}
+
+/* ---- Full course map ---- */
+
+.course-map {
+  max-width: 860px;
+}
+
+.course-level {
+  margin-bottom: 28px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--accent) 10%, var(--stone-800)),
+    var(--stone-900)
+  );
+}
+
+.course-level-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  margin-bottom: 14px;
+  align-items: baseline;
+}
+
+.course-level-head h3 {
+  font-family: var(--display);
+  font-size: 22px;
+  color: var(--text-h);
+  margin: 0;
+  grid-column: 1;
+}
+
+.course-level-head p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
+  grid-column: 1;
+}
+
+.course-level-count {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  align-self: center;
+  font-size: 11px;
+  font-variant: small-caps;
+  letter-spacing: 0.1em;
+  color: var(--dim);
+}
+
+.course-topics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.course-topic {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 12px 13px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--stone-850);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.14s ease,
+    transform 0.14s ease;
+}
+
+.course-topic:hover {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+  transform: translateY(-2px);
+}
+
+.course-topic-area {
+  font-size: 10px;
+  font-variant: small-caps;
+  letter-spacing: 0.12em;
+  color: var(--lantern);
+}
+
+.course-topic-name {
+  font-family: var(--display);
+  font-size: 16px;
+  color: var(--text-h);
+}
+
+.course-topic-goal {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+@media (max-width: 640px) {
+  .course-level-head {
+    grid-template-columns: 1fr;
+  }
+
+  .course-level-count {
+    grid-row: auto;
+    grid-column: auto;
+  }
+}
+
+
+
